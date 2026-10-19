@@ -1,0 +1,29 @@
+<?php
+
+namespace App\Providers;
+
+use App\Services\Ai\AiServiceClient;
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        $this->app->singleton(AiServiceClient::class, fn () => new AiServiceClient(
+            baseUrl: config('services.ai.url'),
+            token: config('services.ai.token'),
+            timeout: config('services.ai.timeout'),
+        ));
+    }
+
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
+        //
+    }
+}
