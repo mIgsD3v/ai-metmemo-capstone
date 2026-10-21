@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Card;
 use App\Models\Contact;
 use App\Services\Ai\AiServiceClient;
 use App\Services\CardService;
@@ -37,11 +38,12 @@ class DashboardController extends Controller
                 'card' => $contact->card?->full_name,
                 'created_at' => $contact->created_at->toDateString(),
             ]),
-            // The newest public card is the one to show for a quick QR share.
-            'shareCard' => ($card = $cards->firstWhere('is_public', true)) ? [
+            // Public cards for the quick QR share, newest first. Hidden ones are left out: their QR doesn't work.
+            'shareCards' => $cards->where('is_public', true)->map(fn (Card $card) => [
                 ...$card->only(['id', 'full_name', 'job_title', 'company']),
+                'photo_url' => $card->displayPhotoUrl(),
                 'public_url' => route('public-card.show', $card),
-            ] : null,
+            ])->values(),
             // Lazy so a slow or offline AI service never blocks the first page load.
             'aiOnline' => Inertia::defer(fn () => $this->ai->isHealthy()),
         ]);

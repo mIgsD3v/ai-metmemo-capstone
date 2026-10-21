@@ -1,8 +1,9 @@
 <script setup>
 import { today as localToday } from '@/dates';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { Deferred, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Dropdown from '@/Components/Dropdown.vue';
 import QrCode from '@/Components/QrCode.vue';
 import { copyText } from '@/clipboard';
 
@@ -10,7 +11,7 @@ const props = defineProps({
     stats: Object,
     dueContacts: Array,
     recentContacts: Array,
-    shareCard: Object,
+    shareCards: Array,
     aiOnline: Boolean,
 });
 
@@ -48,7 +49,32 @@ const stats = computed(() => [
     { label: 'Cards', value: props.stats.cards, href: route('cards.index') },
 ]);
 
-const copyLink = () => copyText(props.shareCard.public_url);
+// The card being shared. The last one picked is remembered in this browser; otherwise the newest.
+const SHARE_KEY = 'metmemo.shareCard';
+const remembered = (() => {
+    try { return localStorage.getItem(SHARE_KEY); } catch { return null; }
+})();
+const shareCardId = ref(remembered);
+const shareCard = computed(() => props.shareCards.find((card) => card.id === shareCardId.value) ?? props.shareCards[0] ?? null);
+const shareCardIndex = computed(() => props.shareCards.indexOf(shareCard.value));
+
+const pickShareCard = (card) => {
+    shareCardId.value = card.id;
+    try { localStorage.setItem(SHARE_KEY, card.id); } catch { /* private window: just don't remember */ }
+};
+
+// Chip label: the company says which card it is. Cards with the same label get a number so they stay distinct.
+const shareLabels = computed(() => {
+    const seen = {};
+
+    return Object.fromEntries(props.shareCards.map((card) => {
+        const label = card.company || card.job_title || card.full_name;
+        seen[label] = (seen[label] ?? 0) + 1;
+        return [card.id, seen[label] > 1 ? `${label} (${seen[label]})` : label];
+    }));
+});
+
+const copyLink = () => copyText(shareCard.value.public_url);
 
 const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[0]).slice(0, 2).join('').toUpperCase();
 </script>
@@ -145,7 +171,39 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
 
                     <!-- Share your card -->
                     <section class="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 flex flex-col">
-                        <h3 class="font-semibold text-gray-900">Share your card</h3>
+                        <div class="flex items-center justify-between gap-3">
+                            <h3 class="font-semibold text-gray-900">Share your card</h3>
+                            <!-- One compact switcher, however many cards there are. -->
+                            <Dropdown v-if="shareCards.length > 1" align="right" width="72" :content-classes="['py-1', 'bg-white', 'max-h-72', 'overflow-y-auto']">
+                                <template #trigger>
+                                    <button type="button" class="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-600 hover:border-gray-300 hover:text-gray-900 transition" aria-haspopup="listbox">
+                                        Card {{ shareCardIndex + 1 }} of {{ shareCards.length }}
+                                        <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                                    </button>
+                                </template>
+                                <template #content>
+                                    <div role="listbox" aria-label="Card to share">
+                                        <button
+                                            v-for="card in shareCards"
+                                            :key="card.id"
+                                            type="button"
+                                            role="option"
+                                            :aria-selected="card.id === shareCard.id"
+                                            class="flex w-full items-center gap-3 px-3 py-2 text-start hover:bg-gray-50 transition"
+                                            @click="pickShareCard(card)"
+                                        >
+                                            <img v-if="card.photo_url" :src="card.photo_url" alt="" class="size-8 shrink-0 rounded-full object-cover">
+                                            <span v-else class="size-8 shrink-0 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-semibold" aria-hidden="true">{{ initials(card.full_name) }}</span>
+                                            <span class="min-w-0 flex-1">
+                                                <span class="block truncate text-sm font-medium text-gray-900">{{ shareLabels[card.id] }}</span>
+                                                <span class="block truncate text-xs text-gray-500">{{ card.job_title || card.full_name }}</span>
+                                            </span>
+                                            <svg v-if="card.id === shareCard.id" class="size-4 shrink-0 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
+                                        </button>
+                                    </div>
+                                </template>
+                            </Dropdown>
+                        </div>
                         <template v-if="shareCard">
                             <p class="text-sm text-gray-500 mt-1">Let them scan this with their phone camera.</p>
                             <div class="mt-4 flex justify-center">
@@ -153,7 +211,8 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
                                     <QrCode :value="shareCard.public_url" :size="168" />
                                 </div>
                             </div>
-                            <div class="mt-4 text-center">
+                            <div class="mt-4 flex flex-col items-center text-center">
+                                <img v-if="shareCard.photo_url" :src="shareCard.photo_url" alt="" class="mb-2 size-12 rounded-full object-cover border border-gray-200">
                                 <div class="font-medium text-gray-900">{{ shareCard.full_name }}</div>
                                 <div class="text-sm text-gray-500">{{ [shareCard.job_title, shareCard.company].filter(Boolean).join(' · ') }}</div>
                             </div>
@@ -166,6 +225,10 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
                                 </a>
                             </div>
                         </template>
+                        <div v-else-if="stats.cards > 0" class="flex-1 flex flex-col items-center justify-center text-center py-8 gap-3">
+                            <p class="text-sm text-gray-500">All your cards are hidden, so there's no QR code to share.</p>
+                            <Link :href="route('cards.index')" class="btn-accent">Go to My Cards</Link>
+                        </div>
                         <div v-else class="flex-1 flex flex-col items-center justify-center text-center py-8 gap-3">
                             <p class="text-sm text-gray-500">Create a card to get your link and QR code.</p>
                             <Link :href="route('cards.create')" class="btn-accent">Create your card</Link>
