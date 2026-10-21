@@ -5,7 +5,9 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import SidebarLink from '@/Components/SidebarLink.vue';
 import ThemeToggle from '@/Components/ThemeToggle.vue';
+import NotificationBell from '@/Components/NotificationBell.vue';
 import { sidebarExpanded, toggleSidebar } from '@/sidebar';
+import { onMounted, onUnmounted, ref } from 'vue';
 
 defineProps({
     title: String,
@@ -36,6 +38,25 @@ const logout = () => {
     router.post(route('logout'));
 };
 
+// Header search: jumps to Contacts with the results. "/" focuses it from anywhere, unless you're typing.
+const search = ref('');
+const searchInput = ref(null);
+
+const searchContacts = () => {
+    router.get(route('contacts.index'), { search: search.value.trim() || undefined });
+};
+
+const focusSearch = (event) => {
+    const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName) || event.target.isContentEditable;
+
+    if (event.key === '/' && ! typing && searchInput.value) {
+        event.preventDefault();
+        searchInput.value.focus();
+    }
+};
+
+onMounted(() => document.addEventListener('keydown', focusSearch));
+onUnmounted(() => document.removeEventListener('keydown', focusSearch));
 </script>
 
 <template>
@@ -50,6 +71,7 @@ const logout = () => {
                 </Link>
 
                 <div class="flex items-center gap-1">
+                    <NotificationBell />
                     <ThemeToggle />
                     <Dropdown align="right" width="48">
                         <template #trigger>
@@ -178,6 +200,29 @@ const logout = () => {
             </aside>
 
             <div class="pb-24 lg:pb-0 transition-[padding] duration-200 ease-out" :class="sidebarExpanded ? 'lg:ps-64' : 'lg:ps-16'">
+                <!-- Desktop top bar: same height and glass style as the phone bar, lined up with the sidebar's logo row. -->
+                <div class="hidden lg:block sticky top-0 z-30 h-16 bg-page/85 backdrop-blur border-b border-gray-200">
+                    <div class="max-w-7xl mx-auto h-full px-8 flex items-center gap-4">
+                        <form v-if="! route().current('contacts.index')" class="relative w-full max-w-md" role="search" @submit.prevent="searchContacts">
+                            <svg class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+                            </svg>
+                            <input
+                                ref="searchInput"
+                                v-model="search"
+                                type="search"
+                                placeholder="Search contacts"
+                                aria-label="Search contacts"
+                                class="w-full h-9 rounded-lg border-gray-200 bg-white ps-9 pe-10 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500"
+                            >
+                            <kbd class="pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2 rounded border border-gray-200 px-1.5 text-[11px] font-medium text-gray-400">/</kbd>
+                        </form>
+                        <div class="ms-auto flex items-center gap-1">
+                            <NotificationBell />
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Page heading -->
                 <header v-if="$slots.header" class="border-b border-gray-200">
                     <div class="max-w-7xl mx-auto py-5 lg:py-6 px-4 sm:px-6 lg:px-8">

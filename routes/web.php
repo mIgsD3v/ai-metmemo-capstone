@@ -4,6 +4,7 @@ use App\Http\Controllers\CardController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactNoteController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicCardController;
 use App\Http\Controllers\ScanController;
 use Illuminate\Foundation\Application;
@@ -37,6 +38,11 @@ Route::middleware([
     'verified',
 ])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::get('/notifications/recent', [NotificationController::class, 'recent'])->name('notifications.recent');
+    Route::post('/notifications/read-all', [NotificationController::class, 'readAll'])->name('notifications.read-all');
+    Route::post('/notifications/{notification}/open', [NotificationController::class, 'open'])->name('notifications.open');
 
     Route::resource('cards', CardController::class)->except('show');
     Route::get('/cards/{card}/print', [CardController::class, 'print'])->name('cards.print');

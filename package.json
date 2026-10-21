@@ -21,6 +21,8 @@
         "vue": "^3.3.13"
     },
     "dependencies": {
+        "laravel-echo": "^2.6.1",
+        "pusher-js": "^8.6.0",
         "qrcode": "^1.5.4"
     }
 }

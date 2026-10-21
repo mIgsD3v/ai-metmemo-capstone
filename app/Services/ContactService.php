@@ -7,11 +7,14 @@ use App\Models\Card;
 use App\Models\Contact;
 use App\Models\ContactNote;
 use App\Models\User;
+use App\Notifications\FollowUpsDue;
+use App\Notifications\NewLeadCaptured;
 use App\Repositories\Contracts\ContactRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class ContactService
 {
@@ -105,9 +108,6 @@ class ContactService
         return $this->contacts->addNote($contact, $body);
     }
 
-    /** @return Collection<int, Contact> */
-    public function search(User $user, string $search, int $limit = 10): Collection
-    {
     /**
      * @param  int  $withinDays  0 = due today or overdue; 7 = also those due in the coming week.
      * @return Collection<int, Contact>
@@ -117,6 +117,9 @@ class ContactService
         return $this->contacts->dueForFollowUp($user, now()->addDays($withinDays));
     }
 
+    /** @return Collection<int, Contact> */
+    public function search(User $user, string $search, int $limit = 10): Collection
+    {
         return $this->contacts->searchForUser($user, $search, $limit);
     }
 
@@ -133,7 +136,7 @@ class ContactService
      */
     public function captureLead(Card $card, array $data): Contact
     {
-        return DB::transaction(function () use ($card, $data) {
+        $contact = DB::transaction(function () use ($card, $data) {
             $contact = $this->contacts->create($card->user, [
                 ...Arr::only($data, ['full_name', 'email', 'phone', 'company']),
                 'card_id' => $card->id,
@@ -148,5 +151,41 @@ class ContactService
 
             return $contact;
         });
+
+        // The lead is already saved: a notification problem (e.g. Pusher down) must never fail the visitor's form.
+        try {
+            $card->user->notify(new NewLeadCaptured($contact, $card));
+        } catch (Throwable $e) {
+            report($e);
+        }
+
+        return $contact;
+    }
+
+    /**
+     * Morning summary of who's due today or overdue. Skipped when nobody is due,
+     * or when today's summary was already sent (so a re-run never doubles it).
+     */
+    public function sendFollowUpReminder(User $user): bool
+    {
+        $due = $this->dueForFollowUp($user);
+
+        if ($due->isEmpty()) {
+            return false;
+        }
+
+        $alreadySent = $user->notifications()
+            ->where('type', FollowUpsDue::class)
+            ->where('created_at', '>=', today())
+            ->exists();
+
+        if ($alreadySent) {
+            return false;
+        }
+
+        $overdue = $due->filter(fn (Contact $contact) => $contact->next_follow_up_at->lt(today()))->count();
+        $user->notify(new FollowUpsDue($due->count(), $overdue, $due->take(3)->pluck('full_name')->all()));
+
+        return true;
     }
 }

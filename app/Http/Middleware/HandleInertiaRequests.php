@@ -37,7 +37,15 @@ class HandleInertiaRequests extends Middleware
     {
         return [
             ...parent::share($request),
-            //
+            // The bell's badge. Its list loads when opened; live updates arrive over Pusher.
+            'notifications' => fn () => $request->user() ? [
+                'unread' => $request->user()->unreadNotifications()->count(),
+            ] : null,
+            // Public keys only: the browser needs them to listen. The secret never leaves the server.
+            'pusher' => config('broadcasting.default') === 'pusher' ? [
+                'key' => config('broadcasting.connections.pusher.key'),
+                'cluster' => config('broadcasting.connections.pusher.options.cluster'),
+            ] : null,
         ];
     }
 }
