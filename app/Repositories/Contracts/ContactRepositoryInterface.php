@@ -16,6 +16,16 @@ interface ContactRepositoryInterface
      */
     public function paginateForUser(User $user, ?string $search = null, ?string $card = null, int $perPage = 10): LengthAwarePaginator;
 
+    /**
+     * Name, company, email or event matches.
+     *
+     * @return Collection<int, Contact>
+     */
+    public function searchForUser(User $user, string $search, int $limit): Collection;
+
+    /** @return Collection<int, ContactNote> Newest first. */
+    public function notesFor(Contact $contact, int $limit): Collection;
+
     /** @return Collection<int, Contact> */
     public function recentForUser(User $user, int $limit): Collection;
 
@@ -34,7 +44,7 @@ interface ContactRepositoryInterface
 
     /**
      * Contacts whose follow-up date is on or before the given day.
-     * Also backs the assistant's get_overdue_followups tool later.
+     * Also backs the assistant's get_overdue_followups tool.
      *
      * @return Collection<int, Contact>
      */

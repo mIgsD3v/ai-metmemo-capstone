@@ -3,7 +3,9 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use App\Http\Middleware\VerifyInternalToken;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -13,6 +15,12 @@ return Application::configure(basePath: dirname(__DIR__))
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        // Stateless JSON for the AI service's tools: no session, cookies or CSRF.
+        then: function () {
+            Route::middleware(['api', VerifyInternalToken::class])
+                ->prefix('internal')
+                ->group(base_path('routes/internal.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [

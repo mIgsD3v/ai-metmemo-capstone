@@ -106,9 +106,24 @@ class ContactService
     }
 
     /** @return Collection<int, Contact> */
-    public function dueForFollowUp(User $user): Collection
+    public function search(User $user, string $search, int $limit = 10): Collection
     {
-        return $this->contacts->dueForFollowUp($user, now());
+    /**
+     * @param  int  $withinDays  0 = due today or overdue; 7 = also those due in the coming week.
+     * @return Collection<int, Contact>
+     */
+    public function dueForFollowUp(User $user, int $withinDays = 0): Collection
+    {
+        return $this->contacts->dueForFollowUp($user, now()->addDays($withinDays));
+    }
+
+        return $this->contacts->searchForUser($user, $search, $limit);
+    }
+
+    /** @return Collection<int, ContactNote> Newest first. */
+    public function notes(Contact $contact, int $limit = 50): Collection
+    {
+        return $this->contacts->notesFor($contact, $limit);
     }
 
     /**

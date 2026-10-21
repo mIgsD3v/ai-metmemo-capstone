@@ -18,17 +18,33 @@ class ContactRepository implements ContactRepositoryInterface
             ->with('card:id,full_name,job_title')
             ->when($card === 'none', fn ($query) => $query->whereNull('card_id'))
             ->when($card !== null && $card !== 'none', fn ($query) => $query->where('card_id', $card))
-            ->when($search, function ($query, string $search) {
-                $query->where(function ($query) use ($search) {
-                    $query->where('full_name', 'like', "%{$search}%")
-                        ->orWhere('company', 'like', "%{$search}%")
-                        ->orWhere('email', 'like', "%{$search}%")
-                        ->orWhere('event', 'like', "%{$search}%");
-                });
-            })
+            ->when($search, fn ($query, string $search) => $this->whereMatches($query, $search))
             ->latest()
             ->paginate($perPage)
             ->withQueryString();
+    }
+
+    public function searchForUser(User $user, string $search, int $limit): Collection
+    {
+        return $this->whereMatches($user->contacts(), $search)
+            ->latest()
+            ->take($limit)
+            ->get();
+    }
+
+    public function notesFor(Contact $contact, int $limit): Collection
+    {
+        return $contact->notes()->take($limit)->get();
+    }
+
+    private function whereMatches($query, string $search)
+    {
+        return $query->where(function ($query) use ($search) {
+            $query->where('full_name', 'like', "%{$search}%")
+                ->orWhere('company', 'like', "%{$search}%")
+                ->orWhere('email', 'like', "%{$search}%")
+                ->orWhere('event', 'like', "%{$search}%");
+        });
     }
 
     public function recentForUser(User $user, int $limit): Collection
