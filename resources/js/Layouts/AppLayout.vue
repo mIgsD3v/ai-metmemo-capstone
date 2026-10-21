@@ -5,6 +5,7 @@ import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import SidebarLink from '@/Components/SidebarLink.vue';
 import ThemeToggle from '@/Components/ThemeToggle.vue';
+import { sidebarExpanded, toggleSidebar } from '@/sidebar';
 
 defineProps({
     title: String,
@@ -18,6 +19,8 @@ const icons = {
     profile: 'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z',
     logout: 'M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9',
     key: 'M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z',
+    // A window with a left column: the "sidebar" symbol Claude and most apps use for this toggle.
+    panel: 'M5.25 3.75h13.5a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V5.25a1.5 1.5 0 0 1 1.5-1.5ZM9.75 3.75v16.5',
 };
 
 // One list drives both the desktop sidebar and the phone tab bar.
@@ -32,6 +35,7 @@ const nav = [
 const logout = () => {
     router.post(route('logout'));
 };
+
 </script>
 
 <template>
@@ -75,30 +79,59 @@ const logout = () => {
                 </div>
             </div>
 
-            <!-- Desktop sidebar -->
-            <aside class="hidden lg:flex fixed inset-y-0 start-0 z-40 w-64 flex-col bg-white border-e border-gray-200">
-                <div class="flex items-center h-16 px-5 shrink-0">
+            <!-- Desktop sidebar: icons only by default. The panel button at the top expands it (like Claude's). -->
+            <aside
+                class="hidden lg:flex fixed inset-y-0 start-0 z-40 flex-col bg-white border-e border-gray-200 transition-[width] duration-200 ease-out"
+                :class="sidebarExpanded ? 'w-64' : 'w-16'"
+            >
+                <div v-if="sidebarExpanded" class="flex items-center justify-between h-16 shrink-0 ps-5 pe-3">
                     <Link :href="route('dashboard')" aria-label="MetMemo home">
                         <ApplicationMark class="block" />
                     </Link>
+                    <button
+                        type="button"
+                        class="flex size-9 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
+                        aria-label="Collapse sidebar"
+                        aria-expanded="true"
+                        title="Collapse sidebar"
+                        @click="toggleSidebar"
+                    >
+                        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" :d="icons.panel" />
+                        </svg>
+                    </button>
+                </div>
+                <div v-else class="shrink-0 px-2.5 pb-2 border-b border-gray-200">
+                    <div class="flex items-center justify-center h-16">
+                        <Link :href="route('dashboard')" aria-label="MetMemo home">
+                            <ApplicationMark class="block !text-2xl" icon-only />
+                        </Link>
+                    </div>
+                    <SidebarLink as="button" type="button" label="Expand sidebar" collapsed aria-expanded="false" @click="toggleSidebar">
+                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" :d="icons.panel" />
+                        </svg>
+                    </SidebarLink>
                 </div>
 
-                <nav class="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+                <!-- Collapsed: no overflow clipping, so the hover labels can show beside the icons. -->
+                <nav class="flex-1 py-4 space-y-1" :class="sidebarExpanded ? 'px-3 overflow-y-auto' : 'px-2.5'" aria-label="Main">
                     <SidebarLink
                         v-for="item in nav.filter((item) => ! item.mobileOnly)"
                         :key="item.route"
                         :href="route(item.route)"
                         :active="route().current(item.match)"
+                        :label="item.sidebarLabel ?? item.label"
+                        :collapsed="! sidebarExpanded"
                     >
-                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
                         </svg>
-                        {{ item.sidebarLabel ?? item.label }}
                     </SidebarLink>
                 </nav>
 
-                <div class="shrink-0 border-t border-gray-200 px-3 py-4 space-y-1">
-                    <div class="flex items-center gap-3 px-3 pb-2">
+                <div class="shrink-0 border-t border-gray-200 py-4 space-y-1" :class="sidebarExpanded ? 'px-3' : 'px-2.5'">
+                    <div v-if="sidebarExpanded" class="flex items-center gap-3 px-3 pb-2">
                         <img
                             v-if="$page.props.jetstream.managesProfilePhotos"
                             class="size-9 shrink-0 rounded-full object-cover"
@@ -111,33 +144,40 @@ const logout = () => {
                         </div>
                         <ThemeToggle class="shrink-0" />
                     </div>
+                    <div v-else class="flex flex-col items-center gap-2 pb-2">
+                        <img
+                            v-if="$page.props.jetstream.managesProfilePhotos"
+                            class="size-9 rounded-full object-cover"
+                            :src="$page.props.auth.user.profile_photo_url"
+                            :alt="$page.props.auth.user.name"
+                            :title="`${$page.props.auth.user.name} · ${$page.props.auth.user.email}`"
+                        >
+                        <ThemeToggle />
+                    </div>
 
-                    <SidebarLink :href="route('profile.show')" :active="route().current('profile.show')">
-                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <SidebarLink :href="route('profile.show')" :active="route().current('profile.show')" label="Profile" :collapsed="! sidebarExpanded">
+                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" :d="icons.profile" />
                         </svg>
-                        Profile
                     </SidebarLink>
 
-                    <SidebarLink v-if="$page.props.jetstream.hasApiFeatures" :href="route('api-tokens.index')" :active="route().current('api-tokens.index')">
-                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <SidebarLink v-if="$page.props.jetstream.hasApiFeatures" :href="route('api-tokens.index')" :active="route().current('api-tokens.index')" label="API Tokens" :collapsed="! sidebarExpanded">
+                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" :d="icons.key" />
                         </svg>
-                        API Tokens
                     </SidebarLink>
 
                     <form @submit.prevent="logout">
-                        <SidebarLink as="button">
-                            <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <SidebarLink as="button" label="Log Out" :collapsed="! sidebarExpanded">
+                            <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" :d="icons.logout" />
                             </svg>
-                            Log Out
                         </SidebarLink>
                     </form>
                 </div>
             </aside>
 
-            <div class="lg:ps-64 pb-24 lg:pb-0">
+            <div class="pb-24 lg:pb-0 transition-[padding] duration-200 ease-out" :class="sidebarExpanded ? 'lg:ps-64' : 'lg:ps-16'">
                 <!-- Page heading -->
                 <header v-if="$slots.header" class="border-b border-gray-200">
                     <div class="max-w-7xl mx-auto py-5 lg:py-6 px-4 sm:px-6 lg:px-8">

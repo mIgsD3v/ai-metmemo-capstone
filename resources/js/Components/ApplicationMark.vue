@@ -1,3 +1,10 @@
+<script setup>
+defineProps({
+    // Just the "M" symbol, for tight spaces like the collapsed sidebar.
+    iconOnly: Boolean,
+});
+</script>
+
 <template>
     <span class="inline-flex items-center gap-[0.25em] font-bold tracking-tight text-gray-900 text-3xl leading-none select-none">
         <!-- MetMemo: two people whose arms meet in the middle form an "M". Green carries the "memo" half. -->
@@ -7,6 +14,6 @@
             <circle class="fill-accent" cx="25" cy="6.5" r="3.2" />
             <path class="stroke-accent" d="M16 22.5l9-9V26" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round" />
         </svg>
-        <span>met<span class="text-indigo-500">memo</span></span>
+        <span v-if="! iconOnly">met<span class="text-indigo-500">memo</span></span>
     </span>
 </template>
