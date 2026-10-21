@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import ThemeToggle from '@/Components/ThemeToggle.vue';
@@ -10,6 +10,35 @@ defineProps({
 });
 
 const showingProductMenu = ref(false);
+
+// Product tour: plays muted while on screen, pauses when scrolled away. Never autoplays for people
+// who prefer reduced motion. The "Watch the tour" button plays it with sound (a click allows that).
+const tourVideo = ref(null);
+let tourObserver;
+
+const playTour = () => {
+    const video = tourVideo.value;
+    if (! video) return;
+    video.muted = false;
+    video.currentTime = 0;
+    video.play().catch(() => {});
+};
+
+onMounted(() => {
+    const video = tourVideo.value;
+    if (! video || ! ('IntersectionObserver' in window) || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    tourObserver = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+            if (video.paused && video.muted && ! video.ended) video.play().catch(() => {});
+        } else if (! video.paused) {
+            video.pause();
+        }
+    }, { threshold: [0, 0.5] });
+    tourObserver.observe(video);
+});
+
+onUnmounted(() => tourObserver?.disconnect());
 const showingUseCaseMenu = ref(false);
 const showingMobileMenu = ref(false);
 
@@ -358,17 +387,40 @@ const openUseCase = (id) => {
                     <Link :href="canRegister ? route('register') : route('login')" class="btn-accent text-base px-6 py-3">
                         Create your free card
                     </Link>
-                    <a href="#how-it-works" class="inline-flex items-center gap-2 px-6 py-3 rounded-md border border-gray-300 text-base font-medium text-gray-700 hover:bg-white transition">
-                        See how it works
-                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 13.5 12 21m0 0-7.5-7.5M12 21V3" />
+                    <a href="#tour" class="inline-flex items-center gap-2 px-6 py-3 rounded-md border border-gray-300 text-base font-medium text-gray-700 hover:bg-white transition" @click="playTour">
+                        <svg class="size-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M8 5.5v13l11-6.5z" />
                         </svg>
+                        Watch the 45-second tour
                     </a>
                 </div>
                 <p class="mt-6 text-sm text-gray-500">
                     No app to install · Works on any phone · You stay in control of every message
                 </p>
             </div>
+        </section>
+
+        <!-- Product tour video -->
+        <section id="tour" class="scroll-mt-20 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-20">
+            <div class="text-center max-w-2xl mx-auto">
+                <p class="text-sm font-semibold text-indigo-600 uppercase tracking-wider">Product tour</p>
+                <h2 class="mt-2 text-3xl sm:text-4xl font-bold tracking-tight text-gray-900">See MetMemo in 45 seconds</h2>
+            </div>
+            <!-- Plays muted when scrolled into view (the captions are in the video); controls to unmute or replay. -->
+            <div class="mt-10 overflow-hidden rounded-2xl sm:rounded-3xl border border-gray-200 bg-gray-950 shadow-xl">
+                <video
+                    ref="tourVideo"
+                    class="block w-full aspect-video"
+                    src="/videos/metmemo-intro.mp4"
+                    poster="/videos/metmemo-intro-poster.jpg"
+                    controls
+                    muted
+                    playsinline
+                    preload="metadata"
+                    aria-label="MetMemo product tour, 45 seconds, with captions"
+                />
+            </div>
+            <p class="mt-3 text-center text-sm text-gray-500">Tap the speaker icon for the voice-over. Sample contacts shown.</p>
         </section>
 
         <!-- How it works -->
