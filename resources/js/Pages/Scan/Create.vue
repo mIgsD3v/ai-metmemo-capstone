@@ -115,7 +115,7 @@ const confidenceLabel = (field) => `${Math.round((field?.confidence ?? 0) * 100)
         </template>
 
         <div class="py-6 sm:py-10">
-            <div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+            <div class="page space-y-6">
                 <!-- Step indicator -->
                 <ol class="flex items-center gap-2 text-xs font-medium" aria-label="Progress">
                     <li
@@ -128,14 +128,15 @@ const confidenceLabel = (field) => `${Math.round((field?.confidence ?? 0) * 100)
                     </li>
                 </ol>
 
-                <!-- 1. Capture -->
-                <section v-if="step === 'capture'" class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 space-y-6">
+                <!-- 1. Capture: the photo action leads; on wide screens the how-it-works panel sits beside it. -->
+                <div v-if="step === 'capture'" class="grid gap-6 lg:grid-cols-5 items-start">
+                <section class="lg:col-span-3 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 space-y-6">
                     <input ref="cameraInput" type="file" accept="image/*" capture="environment" class="hidden" @change="onPhoto">
                     <input ref="galleryInput" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="onPhoto">
 
                     <button
                         type="button"
-                        class="w-full aspect-[16/10] max-h-72 rounded-2xl border-2 border-dashed border-gray-300 hover:border-indigo-500 hover:bg-indigo-50/40 transition flex flex-col items-center justify-center gap-3 text-gray-500"
+                        class="w-full aspect-[16/10] max-h-80 rounded-2xl border-2 border-dashed border-gray-300 hover:border-indigo-500 hover:bg-indigo-50/40 transition flex flex-col items-center justify-center gap-3 text-gray-500"
                         @click="cameraInput.click()"
                     >
                         <span class="flex items-center justify-center size-16 rounded-full bg-accent text-accent-fg">
@@ -153,15 +154,34 @@ const confidenceLabel = (field) => `${Math.round((field?.confidence ?? 0) * 100)
                         <SecondaryButton type="button" class="justify-center flex-1" @click="typeByHand">Type it in instead</SecondaryButton>
                     </div>
 
-                    <ul class="grid gap-2 text-sm text-gray-500">
+                    <ul class="grid gap-2 text-sm text-gray-500 lg:hidden">
                         <li class="flex gap-2"><span class="text-indigo-500">•</span> Lay the card flat in good light and fill the frame.</li>
                         <li class="flex gap-2"><span class="text-indigo-500">•</span> Nothing is saved until you review it. The photo itself is never stored.</li>
                     </ul>
                 </section>
 
+                <aside class="hidden lg:block lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
+                    <h2 class="font-semibold text-gray-900">How it works</h2>
+                    <ol class="mt-5 space-y-5">
+                        <li v-for="(item, index) in [
+                            ['Take or upload a photo', 'Lay the card flat in good light and fill the frame.'],
+                            ['The AI reads it', 'Name, title, company, email and phone, in a few seconds.'],
+                            ['You check and save', 'Fields the AI is unsure about are highlighted. Nothing is saved until you confirm.'],
+                        ]" :key="index" class="flex gap-4">
+                            <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-sm font-semibold text-indigo-600">{{ index + 1 }}</span>
+                            <span>
+                                <span class="block text-sm font-medium text-gray-900">{{ item[0] }}</span>
+                                <span class="mt-0.5 block text-sm text-gray-500">{{ item[1] }}</span>
+                            </span>
+                        </li>
+                    </ol>
+                    <p class="mt-6 rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-500">The photo is only used to read the card and is never stored.</p>
+                </aside>
+                </div>
+
                 <!-- 2. Reading -->
-                <section v-else-if="step === 'reading'" class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 flex flex-col items-center gap-5 text-center">
-                    <img v-if="photoUrl" :src="photoUrl" alt="Your card photo" class="max-h-56 rounded-xl border border-gray-200 object-contain">
+                <section v-else-if="step === 'reading'" class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-10 flex flex-col items-center gap-5 text-center">
+                    <img v-if="photoUrl" :src="photoUrl" alt="Your card photo" class="max-h-80 rounded-xl border border-gray-200 object-contain">
                     <div class="flex items-center gap-3 text-gray-700 font-medium">
                         <svg class="size-5 animate-spin text-indigo-500" fill="none" viewBox="0 0 24 24" aria-hidden="true">
                             <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="3" class="opacity-25" />

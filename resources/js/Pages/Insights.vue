@@ -101,7 +101,7 @@ const healthShare = (key) => (healthTotal.value ? Math.round((followUps.value.he
         </template>
 
         <div class="py-6 sm:py-8">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+            <div class="page space-y-6">
                 <!-- One filter row, above everything it scopes. -->
                 <div class="inline-flex rounded-md border border-gray-300 bg-white p-1 shadow-sm" role="radiogroup" aria-label="Period">
                     <button

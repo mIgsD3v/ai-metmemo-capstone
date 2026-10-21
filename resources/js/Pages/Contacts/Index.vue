@@ -108,7 +108,7 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
         </template>
 
         <div class="py-6 sm:py-8">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+            <div class="page space-y-4">
                 <!-- Filters -->
                 <div class="flex flex-col sm:flex-row gap-3">
                     <TextInput v-model="search" type="search" placeholder="Search name, company, email or event" class="w-full sm:w-96" aria-label="Search contacts" />

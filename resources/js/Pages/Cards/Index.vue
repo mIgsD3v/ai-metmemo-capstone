@@ -78,14 +78,14 @@ const destroy = async (card) => {
         </template>
 
         <div class="py-6 sm:py-8">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="page">
                 <div v-if="!cards.length" class="bg-white border border-gray-200 rounded-2xl p-10 text-center space-y-3">
                     <p class="font-medium text-gray-800">No cards yet</p>
                     <p class="text-sm text-gray-500">Create a card to get your own link and QR code.</p>
                     <Link :href="route('cards.create')" class="btn-accent">Create your first card</Link>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4 sm:gap-6">
                     <article v-for="card in cards" :key="card.id" class="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 flex flex-col gap-5">
                         <div class="flex items-start justify-between gap-3">
                             <div class="flex items-center gap-3 min-w-0">

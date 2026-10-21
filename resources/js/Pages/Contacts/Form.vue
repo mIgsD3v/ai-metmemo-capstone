@@ -108,7 +108,7 @@ const chip = (active) => active
 <template>
     <AppLayout :title="editing ? 'Edit contact' : 'New contact'">
         <form class="py-6 sm:py-8" @submit.prevent="submit">
-            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+            <div class="page space-y-6">
                 <!-- Title -->
                 <div class="flex flex-wrap items-end justify-between gap-3">
                     <div>

@@ -205,7 +205,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
             <div class="pb-24 lg:pb-0 transition-[padding] duration-200 ease-out" :class="sidebarExpanded ? 'lg:ps-64' : 'lg:ps-16'">
                 <!-- Desktop top bar: same height and glass style as the phone bar, lined up with the sidebar's logo row. -->
                 <div class="hidden lg:block sticky top-0 z-30 h-16 bg-page/85 backdrop-blur border-b border-gray-200">
-                    <div class="max-w-7xl mx-auto h-full px-8 flex items-center gap-4">
+                    <div class="page h-full flex items-center gap-4">
                         <form v-if="! route().current('contacts.index')" class="relative w-full max-w-md" role="search" @submit.prevent="searchContacts">
                             <svg class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -228,7 +228,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
 
                 <!-- Page heading -->
                 <header v-if="$slots.header" class="border-b border-gray-200">
-                    <div class="max-w-7xl mx-auto py-5 lg:py-6 px-4 sm:px-6 lg:px-8">
+                    <div class="page py-5 lg:py-6">
                         <slot name="header" />
                     </div>
                 </header>

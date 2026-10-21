@@ -39,7 +39,7 @@ cd ai-service
 python -m venv .venv && .venv/Scripts/activate   # macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-uvicorn app.main:app --reload --port 8001
+uvicorn app.main:app --reload --port 8002
 ```
 
 Demo public card: open **My Cards** and use **Open page** (card links are `/c/<uuid>`).

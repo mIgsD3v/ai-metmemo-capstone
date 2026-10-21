@@ -66,7 +66,7 @@ const formatDate = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle:
         </template>
 
         <div class="py-6 sm:py-8">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
+            <div class="page space-y-4">
                 <!-- Filters -->
                 <div class="flex flex-col sm:flex-row gap-3">
                     <div class="flex rounded-md border border-gray-300 bg-white p-1 shadow-sm sm:w-auto" role="tablist" aria-label="Show">

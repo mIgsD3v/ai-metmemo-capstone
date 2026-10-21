@@ -111,6 +111,15 @@
 }
 
 @layer components {
+    /*
+     * One width for every signed-in page, its header and the top bar, so edges line up as you move
+     * around. Wide enough to use a big screen (1600px); pages with forms split into columns inside
+     * it rather than stretching inputs across.
+     */
+    .page {
+        @apply mx-auto w-full max-w-[100rem] px-4 sm:px-6 lg:px-8;
+    }
+
     /* Faint green grid behind hero sections, fading out at the edges. */
     .bg-grid {
         background-image:

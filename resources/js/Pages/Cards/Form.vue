@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { useForm, Link } from '@inertiajs/vue3';
 import { shrink } from '@/images';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import CardPreview from '@/Components/CardPreview.vue';
 import Checkbox from '@/Components/Checkbox.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -79,7 +80,10 @@ const submit = () => {
             <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ card ? 'Edit Card' : 'New Card' }}</h2>
         </template>
 
-        <form class="py-6 sm:py-8 max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6" @submit.prevent="submit">
+        <form class="py-6 sm:py-8" @submit.prevent="submit">
+            <!-- Form on the left; on wide screens a live preview of the public card follows you on the right. -->
+            <div class="page grid gap-6 lg:grid-cols-12 items-start">
+            <div class="lg:col-span-7 xl:col-span-8 space-y-6">
             <section class="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 space-y-4">
                 <div>
                     <h3 class="font-semibold text-gray-900">Card details</h3>
@@ -127,6 +131,16 @@ const submit = () => {
             <div class="flex flex-col-reverse sm:flex-row sm:justify-end sm:items-center gap-3">
                 <Link :href="route('cards.index')" class="inline-flex justify-center rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">Cancel</Link>
                 <PrimaryButton class="justify-center" :disabled="form.processing">Save card</PrimaryButton>
+            </div>
+            </div>
+
+            <aside class="hidden lg:block lg:col-span-5 xl:col-span-4 lg:sticky lg:top-24 space-y-3">
+                <div class="flex items-center justify-between">
+                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-500">Live preview</p>
+                    <p class="text-xs text-gray-400">What people see after scanning</p>
+                </div>
+                <CardPreview :card="form" :photo-url="previewUrl" />
+            </aside>
             </div>
         </form>
     </AppLayout>
