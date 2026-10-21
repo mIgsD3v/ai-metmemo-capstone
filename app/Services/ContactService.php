@@ -44,6 +44,12 @@ class ContactService
         return $this->contacts->countCreatedSince($user, now()->startOfWeek());
     }
 
+    /** Last week up to this same moment (Monday to "now minus a week"), so the comparison is fair mid-week. */
+    public function countLastWeekSoFar(User $user): int
+    {
+        return $this->contacts->countCreatedBetween($user, now()->subWeek()->startOfWeek(), now()->subWeek());
+    }
+
     /**
      * Save a contact read from a scanned paper business card, after the owner reviewed the fields.
      *
@@ -116,6 +122,7 @@ class ContactService
     {
         return $this->contacts->update($contact, [
             'last_contacted_at' => now(),
+            'first_followed_up_at' => $contact->first_followed_up_at ?? now(),
             'next_follow_up_at' => $nextInDays ? today()->addDays($nextInDays) : null,
         ]);
     }

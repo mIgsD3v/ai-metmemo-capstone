@@ -21,6 +21,7 @@ const icons = {
     profile: 'M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z',
     logout: 'M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9',
     key: 'M15.75 5.25a3 3 0 0 1 3 3m3 0a6 6 0 0 1-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1 1 21.75 8.25Z',
+    insights: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z',
     // A window with a left column: the "sidebar" symbol Claude and most apps use for this toggle.
     panel: 'M5.25 3.75h13.5a1.5 1.5 0 0 1 1.5 1.5v13.5a1.5 1.5 0 0 1-1.5 1.5H5.25a1.5 1.5 0 0 1-1.5-1.5V5.25a1.5 1.5 0 0 1 1.5-1.5ZM9.75 3.75v16.5',
 };
@@ -28,6 +29,8 @@ const icons = {
 // One list drives both the desktop sidebar and the phone tab bar.
 const nav = [
     { label: 'Home', sidebarLabel: 'Dashboard', route: 'dashboard', match: 'dashboard', icon: icons.home },
+    // Desktop only: the phone tab bar is full; phones reach it from the Dashboard.
+    { label: 'Insights', route: 'insights', match: 'insights', icon: icons.insights, desktopOnly: true },
     { label: 'Contacts', route: 'contacts.index', match: 'contacts.*', icon: icons.contacts },
     { label: 'Scan', sidebarLabel: 'Scan a card', route: 'scan.create', match: 'scan.*', icon: icons.scan, primary: true },
     { label: 'Cards', sidebarLabel: 'My Cards', route: 'cards.index', match: 'cards.*', icon: icons.cards },
@@ -243,7 +246,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
             >
                 <div class="grid grid-cols-5 h-16 max-w-md mx-auto">
                     <Link
-                        v-for="item in nav"
+                        v-for="item in nav.filter((item) => ! item.desktopOnly)"
                         :key="item.route"
                         :href="route(item.route)"
                         class="relative flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition"

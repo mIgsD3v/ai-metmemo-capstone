@@ -77,6 +77,11 @@ class ContactRepository implements ContactRepositoryInterface
         return $user->contacts()->where('created_at', '>=', $since)->count();
     }
 
+    public function countCreatedBetween(User $user, CarbonInterface $from, CarbonInterface $until): int
+    {
+        return $user->contacts()->where('created_at', '>=', $from)->where('created_at', '<', $until)->count();
+    }
+
     public function recentEvents(User $user, int $limit): array
     {
         return $user->contacts()

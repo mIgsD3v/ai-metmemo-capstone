@@ -29,6 +29,7 @@ class Contact extends Model
         'met_at',
         'next_follow_up_at',
         'last_contacted_at',
+        'first_followed_up_at',
     ];
 
     protected function casts(): array
@@ -39,6 +40,7 @@ class Contact extends Model
             'met_at' => 'date:Y-m-d',
             'next_follow_up_at' => 'date:Y-m-d',
             'last_contacted_at' => 'datetime',
+            'first_followed_up_at' => 'datetime',
         ];
     }
 

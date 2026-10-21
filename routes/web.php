@@ -5,6 +5,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactExportController;
 use App\Http\Controllers\ContactNoteController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\InsightsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicCardController;
 use App\Http\Controllers\ScanController;
@@ -39,6 +40,7 @@ Route::middleware([
     'verified',
 ])->group(function () {
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
+    Route::get('/insights', InsightsController::class)->name('insights');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/recent', [NotificationController::class, 'recent'])->name('notifications.recent');

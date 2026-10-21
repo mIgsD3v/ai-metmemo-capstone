@@ -39,6 +39,8 @@ interface ContactRepositoryInterface
 
     public function countCreatedSince(User $user, CarbonInterface $since): int;
 
+    public function countCreatedBetween(User $user, CarbonInterface $from, CarbonInterface $until): int;
+
     /** @return array<int, string> */
     public function recentEvents(User $user, int $limit): array;
 

@@ -31,6 +31,7 @@ class DashboardController extends Controller
                 'contacts' => $user->contacts()->count(),
                 'due' => $due->count(),
                 'thisWeek' => $this->contacts->countThisWeek($user),
+                'lastWeekSoFar' => $this->contacts->countLastWeekSoFar($user),
             ],
             'dueContacts' => $due->take(5)->map->only(['id', 'full_name', 'company', 'next_follow_up_at'])->values(),
             'recentContacts' => $this->contacts->recent($user)->map(fn (Contact $contact) => [

@@ -45,7 +45,8 @@ const sourceLabels = { manual: 'Added by hand', lead_form: 'Card form', scan: 'S
 
 const stats = computed(() => [
     { label: 'Contacts', value: props.stats.contacts, href: route('contacts.index') },
-    { label: 'New this week', value: props.stats.thisWeek, href: route('contacts.index') },
+    // Compared with the same days last week, and the way into Insights (also on phones).
+    { label: 'New this week', value: props.stats.thisWeek, href: route('insights'), delta: props.stats.thisWeek - props.stats.lastWeekSoFar },
     { label: 'Due for follow-up', value: props.stats.due, href: route('contacts.index'), attention: props.stats.due > 0 },
     { label: 'Cards', value: props.stats.cards, href: route('cards.index') },
 ]);
@@ -134,7 +135,13 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
                         class="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 hover:border-gray-300 transition"
                     >
                         <div class="text-xs sm:text-sm text-gray-500">{{ stat.label }}</div>
-                        <div class="mt-1 text-2xl sm:text-3xl font-semibold tabular-nums" :class="stat.attention ? 'text-amber-600' : 'text-gray-900'">{{ stat.value }}</div>
+                        <div class="mt-1 text-2xl sm:text-3xl font-semibold" :class="stat.attention ? 'text-amber-600' : 'text-gray-900'">{{ stat.value }}</div>
+                        <div v-if="stat.delta !== undefined" class="mt-1 flex items-center gap-1 text-xs" :class="stat.delta > 0 ? 'text-indigo-600' : 'text-gray-500'">
+                            <svg v-if="stat.delta !== 0" class="size-3.5 shrink-0" :class="{ 'rotate-180': stat.delta < 0 }" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 19.5v-15m0 0-6.75 6.75M12 4.5l6.75 6.75" />
+                            </svg>
+                            <span>{{ stat.delta === 0 ? 'Same as last week' : `${stat.delta > 0 ? '+' : '−'}${Math.abs(stat.delta)} vs last week` }}</span>
+                        </div>
                     </Link>
                 </div>
 
