@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Models\Card;
+use App\Models\Contact;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 /**
- * Builds a vCard 3.0 file so visitors can save the card owner to their phone contacts.
+ * Builds vCard 3.0 files: a card owner for visitors to save, and the owner's contacts for export
+ * (to import into Google Contacts or a phone).
  */
 class VCardService
 {
@@ -16,25 +18,8 @@ class VCardService
 
     public function build(Card $card): string
     {
-        $lines = [
-            'BEGIN:VCARD',
-            'VERSION:3.0',
-            'FN:'.$this->escape($card->full_name),
-            'N:'.$this->escape($card->full_name).';;;;',
-        ];
+        $lines = $this->person($card->full_name, $card->company, $card->job_title, $card->email, $card->phone);
 
-        if ($card->company) {
-            $lines[] = 'ORG:'.$this->escape($card->company);
-        }
-        if ($card->job_title) {
-            $lines[] = 'TITLE:'.$this->escape($card->job_title);
-        }
-        if ($card->email) {
-            $lines[] = 'EMAIL;TYPE=INTERNET:'.$this->escape($card->email);
-        }
-        if ($card->phone) {
-            $lines[] = 'TEL;TYPE=CELL:'.$this->escape($card->phone);
-        }
         if ($card->website) {
             $lines[] = 'URL:'.$this->escape($card->website);
         }
@@ -48,6 +33,65 @@ class VCardService
             $lines[] = "PHOTO;ENCODING=b;TYPE={$photo['type']}:".base64_encode($photo['data']);
         }
 
+        return $this->finish($lines);
+    }
+
+    /** One of the owner's contacts, with where you met and your notes, so the context travels with them. */
+    public function buildContact(Contact $contact): string
+    {
+        $lines = $this->person($contact->full_name, $contact->company, $contact->job_title, $contact->email, $contact->phone);
+
+        $met = array_filter([
+            $contact->event ? "Met at {$contact->event}" : null,
+            $contact->met_at ? 'on '.$contact->met_at->format('M j, Y') : null,
+        ]);
+        $notes = $contact->notes->map(fn ($note) => $note->created_at->format('M j, Y').': '.$note->body);
+        $summary = collect([$met ? implode(' ', $met).'.' : null, ...$notes])->filter()->implode("\n");
+
+        if ($summary !== '') {
+            $lines[] = 'NOTE:'.$this->escape($summary);
+        }
+        if ($contact->tags) {
+            $lines[] = 'CATEGORIES:'.implode(',', array_map($this->escape(...), $contact->tags));
+        }
+
+        return $this->finish($lines);
+    }
+
+    public function contactsFilename(): string
+    {
+        return 'metmemo-contacts-'.today()->toDateString().'.vcf';
+    }
+
+    /** @return array<int, string> The lines every vCard starts with. */
+    private function person(string $name, ?string $company, ?string $title, ?string $email, ?string $phone): array
+    {
+        $lines = [
+            'BEGIN:VCARD',
+            'VERSION:3.0',
+            'FN:'.$this->escape($name),
+            'N:'.$this->escape($name).';;;;',
+        ];
+
+        if ($company) {
+            $lines[] = 'ORG:'.$this->escape($company);
+        }
+        if ($title) {
+            $lines[] = 'TITLE:'.$this->escape($title);
+        }
+        if ($email) {
+            $lines[] = 'EMAIL;TYPE=INTERNET:'.$this->escape($email);
+        }
+        if ($phone) {
+            $lines[] = 'TEL;TYPE=CELL:'.$this->escape($phone);
+        }
+
+        return $lines;
+    }
+
+    /** @param  array<int, string>  $lines */
+    private function finish(array $lines): string
+    {
         $lines[] = 'END:VCARD';
 
         return implode("\r\n", array_map($this->fold(...), $lines))."\r\n";

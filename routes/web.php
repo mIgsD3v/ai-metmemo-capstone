@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\CardController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\ContactExportController;
 use App\Http\Controllers\ContactNoteController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
@@ -48,6 +49,8 @@ Route::middleware([
     Route::get('/cards/{card}/print', [CardController::class, 'print'])->name('cards.print');
     Route::get('/cards/{card}/vcard', [CardController::class, 'vcard'])->name('cards.vcard');
     Route::patch('/cards/{card}/visibility', [CardController::class, 'visibility'])->name('cards.visibility');
+    // Before the resource, so "export" isn't read as a contact id.
+    Route::get('/contacts/export/{format}', ContactExportController::class)->whereIn('format', ['csv', 'xlsx', 'vcf'])->name('contacts.export');
     Route::resource('contacts', ContactController::class);
     Route::post('/contacts/{contact}/followed-up', [ContactController::class, 'followedUp'])->name('contacts.followed-up');
     Route::post('/contacts/{contact}/notes', [ContactNoteController::class, 'store'])->name('contacts.notes.store');

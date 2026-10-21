@@ -8,6 +8,7 @@ use App\Models\User;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\LazyCollection;
 
 interface ContactRepositoryInterface
 {
@@ -15,6 +16,13 @@ interface ContactRepositoryInterface
      * @param  string|null  $card  A card id, "none" for contacts not captured by a card, or null for all.
      */
     public function paginateForUser(User $user, ?string $search = null, ?string $card = null, int $perPage = 10): LengthAwarePaginator;
+
+    /**
+     * Same filters and order as paginateForUser, every match, with card and notes, read in chunks.
+     *
+     * @return LazyCollection<int, Contact>
+     */
+    public function exportForUser(User $user, ?string $search = null, ?string $card = null): LazyCollection;
 
     /**
      * Name, company, email or event matches.

@@ -9,19 +9,35 @@ use App\Repositories\Contracts\ContactRepositoryInterface;
 use Carbon\CarbonInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\LazyCollection;
 
 class ContactRepository implements ContactRepositoryInterface
 {
     public function paginateForUser(User $user, ?string $search = null, ?string $card = null, int $perPage = 10): LengthAwarePaginator
     {
-        return $user->contacts()
+        return $this->filtered($user, $search, $card)
             ->with('card:id,full_name,job_title')
+            ->paginate($perPage)
+            ->withQueryString();
+    }
+
+    public function exportForUser(User $user, ?string $search = null, ?string $card = null): LazyCollection
+    {
+        // Read in chunks, so a big export never loads every contact (and note) into memory at once.
+        return $this->filtered($user, $search, $card)
+            ->with(['card:id,full_name,company,job_title', 'notes'])
+            ->lazy(200);
+    }
+
+    /** The Contacts list's filters, shared by the page and its exports so both show the same people. */
+    private function filtered(User $user, ?string $search, ?string $card)
+    {
+        return $user->contacts()
             ->when($card === 'none', fn ($query) => $query->whereNull('card_id'))
             ->when($card !== null && $card !== 'none', fn ($query) => $query->where('card_id', $card))
             ->when($search, fn ($query, string $search) => $this->whereMatches($query, $search))
             ->latest()
-            ->paginate($perPage)
-            ->withQueryString();
+            ->orderBy('id'); // Stable order for chunked reads when timestamps tie.
     }
 
     public function searchForUser(User $user, string $search, int $limit): Collection

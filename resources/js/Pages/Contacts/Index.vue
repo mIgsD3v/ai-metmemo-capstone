@@ -3,6 +3,7 @@ import { today as localToday } from '@/dates';
 import { computed, ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import Dropdown from '@/Components/Dropdown.vue';
 import Pagination from '@/Components/Pagination.vue';
 import TextInput from '@/Components/TextInput.vue';
 
@@ -49,6 +50,19 @@ const formatDay = (value) => {
 };
 
 const sourceLabels = { manual: 'Added by hand', lead_form: 'Card form', scan: 'Scanned' };
+
+// Exports use the filters the list is showing (not text still being typed), so you get what you see.
+const exportOptions = [
+    { format: 'xlsx', label: 'Excel (.xlsx)', hint: 'For Excel or Google Sheets' },
+    { format: 'csv', label: 'CSV (.csv)', hint: 'For any spreadsheet or CRM import' },
+    { format: 'vcf', label: 'vCard (.vcf)', hint: 'Import into your phone or Google Contacts' },
+];
+const filtered = computed(() => Boolean(props.filters.search || props.filters.card));
+const exportUrl = (format) => route('contacts.export', {
+    format,
+    search: props.filters.search || undefined,
+    card: props.filters.card || undefined,
+});
 const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[0]).slice(0, 2).join('').toUpperCase();
 </script>
 
@@ -60,10 +74,36 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
                     <h2 class="font-semibold text-xl text-gray-800 leading-tight truncate">{{ heading }}</h2>
                     <p class="text-sm text-gray-500 mt-1">{{ contacts.total }} {{ contacts.total === 1 ? 'person' : 'people' }}</p>
                 </div>
-                <Link :href="route('contacts.create')" class="btn-accent shrink-0">
-                    <span class="sm:hidden">Add</span>
-                    <span class="hidden sm:inline">New contact</span>
-                </Link>
+                <div class="flex shrink-0 items-center gap-2">
+                    <Dropdown v-if="contacts.total" align="right" width="72">
+                        <template #trigger>
+                            <button type="button" class="inline-flex items-center gap-2 rounded-md border border-gray-300 px-3 sm:px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition" aria-haspopup="menu">
+                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                                </svg>
+                                <span class="hidden sm:inline">Export</span>
+                            </button>
+                        </template>
+                        <template #content>
+                            <p class="px-4 pt-2 pb-1 text-xs text-gray-500">
+                                {{ filtered ? `The ${contacts.total} ${contacts.total === 1 ? 'contact' : 'contacts'} matching your filters` : `All ${contacts.total} ${contacts.total === 1 ? 'contact' : 'contacts'}` }}
+                            </p>
+                            <a
+                                v-for="option in exportOptions"
+                                :key="option.format"
+                                :href="exportUrl(option.format)"
+                                class="block px-4 py-2 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition"
+                            >
+                                <span class="block text-sm font-medium text-gray-900">{{ option.label }}</span>
+                                <span class="block text-xs text-gray-500">{{ option.hint }}</span>
+                            </a>
+                        </template>
+                    </Dropdown>
+                    <Link :href="route('contacts.create')" class="btn-accent">
+                        <span class="sm:hidden">Add</span>
+                        <span class="hidden sm:inline">New contact</span>
+                    </Link>
+                </div>
             </div>
         </template>
 
