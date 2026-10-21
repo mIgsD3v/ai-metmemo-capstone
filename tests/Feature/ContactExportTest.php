@@ -7,19 +7,43 @@ use App\Models\Contact;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
-use Spatie\SimpleExcel\SimpleExcelReader;
+use OpenSpout\Reader\CSV\Reader as CsvReader;
+use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 use Tests\TestCase;
 
 class ContactExportTest extends TestCase
 {
     use RefreshDatabase;
 
-    /** @return array<int, array<string, string>> */
+    /** @return array<int, array<string, string>> Each row keyed by the header row. */
     private function rows(TestResponse $response, string $type): array
     {
-        $path = $response->baseResponse->getFile()->getPathname();
+        $reader = $type === 'xlsx' ? new XlsxReader : new CsvReader;
+        $reader->open($response->baseResponse->getFile()->getPathname());
 
-        return SimpleExcelReader::create($path, $type)->getRows()->all();
+        $rows = [];
+        foreach ($reader->getSheetIterator() as $sheet) {
+            foreach ($sheet->getRowIterator() as $row) {
+                $rows[] = array_map(fn ($value) => (string) $value, $row->toArray());
+            }
+        }
+        $reader->close();
+
+        $header = array_shift($rows);
+
+        return array_map(fn ($row) => array_combine($header, $row), $rows);
+    }
+
+    public function test_export_files_are_written_under_storage_not_the_system_temp_folder(): void
+    {
+        // A web server started without a TEMP variable reports C:\Windows as its temp folder.
+        $user = User::factory()->create();
+        Contact::factory()->for($user)->create();
+
+        foreach (['csv', 'xlsx'] as $format) {
+            $path = $this->actingAs($user)->get(route('contacts.export', $format))->assertOk()->baseResponse->getFile()->getPathname();
+            $this->assertStringStartsWith(realpath(storage_path('app/exports')), realpath($path));
+        }
     }
 
     public function test_csv_export_has_every_column_and_your_notes(): void

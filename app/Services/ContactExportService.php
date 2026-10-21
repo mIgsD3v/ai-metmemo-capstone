@@ -5,8 +5,14 @@ namespace App\Services;
 use App\Models\Contact;
 use App\Models\User;
 use App\Repositories\Contracts\ContactRepositoryInterface;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
-use Spatie\SimpleExcel\SimpleExcelWriter;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Common\Entity\Style\Style;
+use OpenSpout\Writer\CSV\Options as CsvOptions;
+use OpenSpout\Writer\CSV\Writer as CsvWriter;
+use OpenSpout\Writer\XLSX\Options as XlsxOptions;
+use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 
 /**
  * Exports the owner's contacts, with the same search and card filter as the Contacts list:
@@ -22,24 +28,34 @@ class ContactExportService
     /**
      * Writes the spreadsheet to a temporary file (row by row, so memory stays flat) and returns its path.
      *
+     * Everything stays under storage/, never the system temp folder: a web server started without a
+     * TEMP variable reports C:\Windows there, which isn't writable.
+     *
      * @param  'csv'|'xlsx'  $format
      */
     public function spreadsheet(User $user, string $format, ?string $search, ?string $card): string
     {
-        $path = sys_get_temp_dir().DIRECTORY_SEPARATOR.'metmemo-export-'.Str::uuid().'.'.$format;
-        $writer = SimpleExcelWriter::create($path, $format);
+        $folder = storage_path('app/exports');
+        File::ensureDirectoryExists($folder);
+        $path = $folder.DIRECTORY_SEPARATOR.Str::uuid().'.'.$format;
 
-        foreach ($this->contacts->exportForUser($user, $search, $card) as $contact) {
-            $row = $this->row($contact);
-            // Excel files store text as text; only CSV cells can be read back as formulas.
-            $writer->addRow($format === 'csv' ? array_map($this->neutralize(...), $row) : $row);
+        // The CSV gets a byte-order mark, so Excel reads accents (Peñafrancia) correctly.
+        $writer = $format === 'xlsx'
+            ? new XlsxWriter(new XlsxOptions(tempFolder: $folder))
+            : new CsvWriter(new CsvOptions(SHOULD_ADD_BOM: true));
+        $writer->openToFile($path);
+
+        try {
+            $writer->addRow(Row::fromValuesWithStyle(array_keys($this->row(new Contact)), new Style(fontBold: true)));
+
+            foreach ($this->contacts->exportForUser($user, $search, $card) as $contact) {
+                $row = array_values($this->row($contact));
+                // Excel files store text as text; only CSV cells can be read back as formulas.
+                $writer->addRow(Row::fromValues($format === 'csv' ? array_map($this->neutralize(...), $row) : $row));
+            }
+        } finally {
+            $writer->close();
         }
-
-        if (! $writer->getNumberOfRows()) {
-            $writer->addHeader(array_keys($this->row(new Contact)));
-        }
-
-        $writer->close();
 
         return $path;
     }

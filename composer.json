@@ -12,8 +12,8 @@
         "laravel/jetstream": "^5.5",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^2.10.1",
+        "openspout/openspout": "^5.3",
         "pusher/pusher-php-server": "^7.3",
-        "spatie/simple-excel": "^3.11",
         "tightenco/ziggy": "^2.0"
     },
     "require-dev": {
