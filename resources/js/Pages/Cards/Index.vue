@@ -88,9 +88,12 @@ const destroy = async (card) => {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                     <article v-for="card in cards" :key="card.id" class="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6 flex flex-col gap-5">
                         <div class="flex items-start justify-between gap-3">
-                            <div class="min-w-0">
-                                <h3 class="font-semibold text-lg text-gray-900 truncate">{{ card.full_name }}</h3>
-                                <p class="text-sm text-gray-500 truncate">{{ [card.job_title, card.company].filter(Boolean).join(' · ') || 'No job title yet' }}</p>
+                            <div class="flex items-center gap-3 min-w-0">
+                                <img v-if="card.photo_url" :src="card.photo_url" alt="" class="size-11 shrink-0 rounded-full object-cover border border-gray-200">
+                                <div class="min-w-0">
+                                    <h3 class="font-semibold text-lg text-gray-900 truncate">{{ card.full_name }}</h3>
+                                    <p class="text-sm text-gray-500 truncate">{{ [card.job_title, card.company].filter(Boolean).join(' · ') || 'No job title yet' }}</p>
+                                </div>
                             </div>
                             <span
                                 class="shrink-0 rounded-full px-2.5 py-0.5 text-xs font-medium"

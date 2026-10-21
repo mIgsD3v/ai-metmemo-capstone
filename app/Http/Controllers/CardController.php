@@ -26,14 +26,18 @@ class CardController extends Controller
         return Inertia::render('Cards/Index', [
             'cards' => $this->cards->listForUser($request->user())->map(fn (Card $card) => [
                 ...$card->only(['id', 'full_name', 'job_title', 'company', 'is_public', 'contacts_count']),
+                'photo_url' => $card->displayPhotoUrl(),
                 'public_url' => route('public-card.show', $card),
             ]),
         ]);
     }
 
-    public function create(): Response
+    public function create(Request $request): Response
     {
-        return Inertia::render('Cards/Form', ['card' => null]);
+        return Inertia::render('Cards/Form', [
+            'card' => null,
+            'accountPhotoUrl' => $this->accountPhotoUrl($request),
+        ]);
     }
 
     public function store(CardRequest $request): RedirectResponse
@@ -43,13 +47,22 @@ class CardController extends Controller
         return to_route('cards.index')->with('flash.banner', 'Card created.');
     }
 
-    public function edit(Card $card): Response
+    public function edit(Request $request, Card $card): Response
     {
         Gate::authorize('update', $card);
 
         return Inertia::render('Cards/Form', [
             'card' => $card,
+            'accountPhotoUrl' => $this->accountPhotoUrl($request),
         ]);
+    }
+
+    /** Shown as the fallback preview when the card has no photo of its own. */
+    private function accountPhotoUrl(Request $request): ?string
+    {
+        $user = $request->user();
+
+        return $user->profile_photo_path ? $user->profile_photo_url : null;
     }
 
     public function update(CardRequest $request, Card $card): RedirectResponse

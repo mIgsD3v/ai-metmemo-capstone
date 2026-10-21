@@ -23,6 +23,8 @@ class CardRequest extends FormRequest
             'website' => ['nullable', 'url', 'max:255'],
             'location' => ['nullable', 'string', 'max:160'],
             'is_public' => ['boolean'],
+            'photo' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
+            'remove_photo' => ['boolean'],
         ];
     }
 }

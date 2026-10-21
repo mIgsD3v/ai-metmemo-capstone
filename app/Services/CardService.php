@@ -6,7 +6,10 @@ use App\Exceptions\CardHasContactsException;
 use App\Models\Card;
 use App\Models\User;
 use App\Repositories\Contracts\CardRepositoryInterface;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 
 class CardService
 {
@@ -25,14 +28,47 @@ class CardService
         return $this->cards->findPublic($id);
     }
 
+    /**
+     * @param  array  $data  Validated card fields, with an optional uploaded "photo".
+     */
     public function create(User $user, array $data): Card
     {
-        return $this->cards->create($user, $data);
+        $photo = $data['photo'] ?? null;
+
+        return $this->cards->create($user, [
+            ...Arr::except($data, ['photo', 'remove_photo']),
+            'photo_path' => $photo ? $this->storePhoto($photo) : null,
+        ]);
     }
 
+    /**
+     * A new "photo" replaces the old one; "remove_photo" clears it. The old file is deleted either way.
+     *
+     * @param  array  $data  Validated card fields, with optional "photo" and "remove_photo".
+     */
     public function update(Card $card, array $data): Card
     {
-        return $this->cards->update($card, $data);
+        $attributes = Arr::except($data, ['photo', 'remove_photo']);
+        $oldPath = $card->photo_path;
+
+        if (isset($data['photo'])) {
+            $attributes['photo_path'] = $this->storePhoto($data['photo']);
+        } elseif ($data['remove_photo'] ?? false) {
+            $attributes['photo_path'] = null;
+        }
+
+        $card = $this->cards->update($card, $attributes);
+
+        if ($oldPath && $oldPath !== $card->photo_path) {
+            Storage::disk(Card::PHOTO_DISK)->delete($oldPath);
+        }
+
+        return $card;
+    }
+
+    private function storePhoto(UploadedFile $photo): string
+    {
+        return $photo->store('card-photos', Card::PHOTO_DISK);
     }
 
     /**
@@ -50,6 +86,10 @@ class CardService
         }
 
         $this->cards->delete($card);
+
+        if ($card->photo_path) {
+            Storage::disk(Card::PHOTO_DISK)->delete($card->photo_path);
+        }
     }
 
     public function setVisibility(Card $card, bool $isPublic): Card

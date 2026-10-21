@@ -12,6 +12,7 @@ class CardRepository implements CardRepositoryInterface
     public function forUser(User $user): Collection
     {
         return $user->cards()
+            ->chaperone() // Each card's ->user is $user, without a query per card.
             ->withCount('contacts')
             ->latest()
             ->get();

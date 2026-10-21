@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Models\Card;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -35,6 +37,17 @@ class PublicCardTest extends TestCase
         $this->get(route('public-card.show', $card))
             ->assertInertia(fn ($page) => $page
                 ->where('card.photo_url', fn ($url) => str_ends_with($url, '/storage/profile-photos/me.jpg')));
+    }
+
+    public function test_card_photo_is_shown_instead_of_the_account_photo(): void
+    {
+        $card = Card::factory()->create(['photo_path' => 'card-photos/work.jpg']);
+        $card->user->forceFill(['profile_photo_path' => 'profile-photos/me.jpg'])->save();
+
+        $this->get(route('public-card.show', $card))
+            ->assertInertia(fn ($page) => $page
+                ->where('card.photo_url', fn ($url) => str_ends_with($url, '/storage/card-photos/work.jpg'))
+                ->missing('card.photo_path'));
     }
 
     public function test_hidden_card_shows_the_branded_card_error_page(): void
@@ -115,6 +128,58 @@ class PublicCardTest extends TestCase
         $this->assertStringContainsString('text/vcard', $response->headers->get('Content-Type'));
         $this->assertStringContainsString('FN:Maria Santos', $response->getContent());
         $this->assertStringContainsString('ORG:Santos\, Realty', $response->getContent());
+        $this->assertStringNotContainsString('PHOTO', $response->getContent());
+    }
+
+    public function test_vcard_embeds_the_card_photo_shrunk_and_folded(): void
+    {
+        Storage::fake('public');
+        $path = UploadedFile::fake()->image('me.jpg', 1200, 900)->store('card-photos', 'public');
+        $card = Card::factory()->create(['photo_path' => $path]);
+
+        $vcard = $this->get(route('public-card.vcard', $card))->assertOk()->getContent();
+
+        $this->assertStringContainsString("\r\nPHOTO;ENCODING=b;TYPE=JPEG:", $vcard);
+        foreach (explode("\r\n", $vcard) as $line) {
+            $this->assertLessThanOrEqual(75, strlen($line));
+        }
+
+        // Unfold, decode, and check the photo is a real JPEG at most 400px wide.
+        preg_match('/PHOTO;ENCODING=b;TYPE=JPEG:(.+?)\r\n(?! )/s', $vcard, $match);
+        [$width] = getimagesizefromstring(base64_decode(str_replace("\r\n ", '', $match[1])));
+        $this->assertSame(400, $width);
+    }
+
+    public function test_vcard_folds_long_lines_without_breaking_accented_letters(): void
+    {
+        $card = Card::factory()->create(['full_name' => 'Juan', 'bio' => null, 'company' => str_repeat('Peñafrancia ', 10)]);
+
+        $vcard = $this->get(route('public-card.vcard', $card))->getContent();
+
+        foreach (explode("\r\n", $vcard) as $line) {
+            $this->assertLessThanOrEqual(75, strlen($line));
+            $this->assertTrue(mb_check_encoding($line, 'UTF-8'), "Broken UTF-8 in: {$line}");
+        }
+        $this->assertStringContainsString('ORG:'.str_repeat('Peñafrancia ', 10), str_replace("\r\n ", '', $vcard));
+    }
+
+    public function test_vcard_falls_back_to_the_account_photo(): void
+    {
+        Storage::fake('public');
+        $card = Card::factory()->create();
+        $card->user->forceFill([
+            'profile_photo_path' => UploadedFile::fake()->image('me.png')->store('profile-photos', 'public'),
+        ])->save();
+
+        $this->assertStringContainsString('PHOTO;ENCODING=b;TYPE=JPEG:', $this->get(route('public-card.vcard', $card))->getContent());
+    }
+
+    public function test_vcard_skips_a_photo_whose_file_is_missing(): void
+    {
+        Storage::fake('public');
+        $card = Card::factory()->create(['photo_path' => 'card-photos/gone.jpg']);
+
+        $this->get(route('public-card.vcard', $card))->assertOk()->assertDontSee('PHOTO');
     }
 
     public function test_visitor_lead_becomes_contact_for_card_owner(): void

@@ -6,6 +6,8 @@ use App\Models\Card;
 use App\Models\Contact;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -59,6 +61,98 @@ class CardManagementTest extends TestCase
         ])->assertRedirect(route('cards.index'));
 
         $this->assertSame('IT Infrastructure Engineer', $card->fresh()->job_title);
+    }
+
+    public function test_owner_can_create_card_with_its_own_photo(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('cards.store'), [
+            'full_name' => 'Maria Santos',
+            'photo' => UploadedFile::fake()->image('me.jpg'),
+        ])->assertRedirect(route('cards.index'));
+
+        $card = $user->cards()->first();
+        $this->assertStringStartsWith('card-photos/', $card->photo_path);
+        Storage::disk('public')->assertExists($card->photo_path);
+    }
+
+    public function test_each_card_keeps_its_own_photo(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create();
+
+        foreach (['Work', 'Side project'] as $name) {
+            $this->actingAs($user)->post(route('cards.store'), [
+                'full_name' => $name,
+                'photo' => UploadedFile::fake()->image("{$name}.jpg"),
+            ]);
+        }
+
+        [$first, $second] = $user->cards()->pluck('photo_path');
+        $this->assertNotSame($first, $second);
+    }
+
+    public function test_new_photo_replaces_and_deletes_the_old_one(): void
+    {
+        Storage::fake('public');
+        $card = Card::factory()->create(['photo_path' => UploadedFile::fake()->image('old.jpg')->store('card-photos', 'public')]);
+        $oldPath = $card->photo_path;
+
+        $this->actingAs($card->user)->put(route('cards.update', $card), [
+            'full_name' => $card->full_name,
+            'photo' => UploadedFile::fake()->image('new.jpg'),
+        ])->assertRedirect(route('cards.index'));
+
+        Storage::disk('public')->assertMissing($oldPath);
+        Storage::disk('public')->assertExists($card->fresh()->photo_path);
+    }
+
+    public function test_editing_without_a_photo_keeps_the_current_one(): void
+    {
+        Storage::fake('public');
+        $card = Card::factory()->create(['photo_path' => UploadedFile::fake()->image('me.jpg')->store('card-photos', 'public')]);
+
+        $this->actingAs($card->user)->put(route('cards.update', $card), [
+            'full_name' => 'New Name',
+        ]);
+
+        $this->assertSame($card->photo_path, $card->fresh()->photo_path);
+    }
+
+    public function test_owner_can_remove_card_photo(): void
+    {
+        Storage::fake('public');
+        $card = Card::factory()->create(['photo_path' => UploadedFile::fake()->image('me.jpg')->store('card-photos', 'public')]);
+
+        $this->actingAs($card->user)->put(route('cards.update', $card), [
+            'full_name' => $card->full_name,
+            'remove_photo' => true,
+        ]);
+
+        $this->assertNull($card->fresh()->photo_path);
+        Storage::disk('public')->assertMissing($card->photo_path);
+    }
+
+    public function test_card_photo_must_be_an_image(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post(route('cards.store'), [
+            'full_name' => 'Maria Santos',
+            'photo' => UploadedFile::fake()->create('virus.pdf', 10, 'application/pdf'),
+        ])->assertSessionHasErrors('photo');
+    }
+
+    public function test_deleting_a_card_deletes_its_photo(): void
+    {
+        Storage::fake('public');
+        $card = Card::factory()->create(['photo_path' => UploadedFile::fake()->image('me.jpg')->store('card-photos', 'public')]);
+
+        $this->actingAs($card->user)->delete(route('cards.destroy', $card));
+
+        Storage::disk('public')->assertMissing($card->photo_path);
     }
 
     public function test_owner_can_open_print_page(): void

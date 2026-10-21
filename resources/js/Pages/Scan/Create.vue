@@ -1,5 +1,6 @@
 <script setup>
 import { today as localToday } from '@/dates';
+import { shrink } from '@/images';
 import { computed, ref } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
@@ -45,36 +46,14 @@ const form = useForm({
 
 const flaggedCount = computed(() => scannedFields.filter(([key]) => scanned.value[key]?.needs_review).length);
 
-// Phone photos are several MB; a 1600px JPEG keeps the text readable and the upload fast.
-const shrink = (file, maxSize = 1600) => new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-
-    img.onload = () => {
-        const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-        const canvas = document.createElement('canvas');
-        canvas.width = Math.round(img.width * scale);
-        canvas.height = Math.round(img.height * scale);
-        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        URL.revokeObjectURL(url);
-        canvas.toBlob((blob) => resolve(blob ? new File([blob], 'card.jpg', { type: 'image/jpeg' }) : file), 'image/jpeg', 0.85);
-    };
-
-    img.onerror = () => {
-        URL.revokeObjectURL(url);
-        resolve(file);
-    };
-
-    img.src = url;
-});
-
 const onPhoto = async (event) => {
     const original = event.target.files[0];
     event.target.value = '';
 
     if (! original) return;
 
-    const photo = await shrink(original);
+    // A 1600px JPEG keeps the card text readable for the AI.
+    const photo = await shrink(original, 1600, 'card.jpg');
     photoUrl.value = URL.createObjectURL(photo);
     readError.value = null;
     step.value = 'reading';

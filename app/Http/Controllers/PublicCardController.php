@@ -29,8 +29,8 @@ class PublicCardController extends Controller
             // Only public-facing fields; never the owner's account details.
             'card' => [
                 ...$card->only(['id', 'full_name', 'job_title', 'company', 'bio', 'email', 'phone', 'website', 'location']),
-                // Owner's uploaded photo only; null falls back to initials on the page.
-                'photo_url' => $card->user->profile_photo_path ? $card->user->profile_photo_url : null,
+                // The card's own photo, else the owner's uploaded account photo; null falls back to initials.
+                'photo_url' => $card->displayPhotoUrl(),
             ],
             'publicUrl' => route('public-card.show', $card),
         ]);
