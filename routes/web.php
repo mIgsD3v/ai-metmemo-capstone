@@ -49,6 +49,7 @@ Route::middleware([
     Route::get('/cards/{card}/vcard', [CardController::class, 'vcard'])->name('cards.vcard');
     Route::patch('/cards/{card}/visibility', [CardController::class, 'visibility'])->name('cards.visibility');
     Route::resource('contacts', ContactController::class);
+    Route::post('/contacts/{contact}/followed-up', [ContactController::class, 'followedUp'])->name('contacts.followed-up');
     Route::post('/contacts/{contact}/notes', [ContactNoteController::class, 'store'])->name('contacts.notes.store');
 
     // Scan a paper business card: photo -> AI reads fields -> owner reviews -> saved as a contact.

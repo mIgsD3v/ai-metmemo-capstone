@@ -3,6 +3,7 @@ import { today as localToday } from '@/dates';
 import { computed } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import FollowUpMenu from '@/Components/FollowUpMenu.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import { ask } from '@/confirm';
@@ -60,6 +61,7 @@ const details = computed(() => [
     ['Job title', props.contact.job_title],
     ['Where you met', props.contact.event],
     ['Met on', formatDay(props.contact.met_at)],
+    ['Last followed up', formatDay(props.contact.last_contacted_at)],
     ['How they were added', sourceLabels[props.contact.source]],
     ['Through your card', props.contact.card?.full_name],
 ].filter(([, value]) => value));
@@ -115,6 +117,7 @@ const noteTime = (value) => new Date(value).toLocaleString(undefined, { month: '
                             </svg>
                             Email
                         </a>
+                        <FollowUpMenu :contact-id="contact.id" class="col-span-2 sm:col-span-1" />
                         <Link :href="route('contacts.edit', contact.id)" class="inline-flex items-center justify-center rounded-md border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition">
                             Edit
                         </Link>

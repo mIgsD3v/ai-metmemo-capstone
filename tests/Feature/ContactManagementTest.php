@@ -49,6 +49,50 @@ class ContactManagementTest extends TestCase
         $this->assertSame('Wants a 2BR in BGC.', $contact->notes()->first()->body);
     }
 
+    public function test_marking_followed_up_records_today_and_sets_the_next_date(): void
+    {
+        $this->travelTo('2026-10-21 09:00');
+        $contact = Contact::factory()->create(['next_follow_up_at' => '2026-10-20', 'last_contacted_at' => null]);
+
+        $this->actingAs($contact->user)
+            ->post(route('contacts.followed-up', $contact), ['next_in_days' => 7])
+            ->assertRedirect()
+            ->assertSessionHas('flash.banner', "Marked {$contact->full_name} as followed up. Next follow-up: Oct 28.");
+
+        $contact->refresh();
+        $this->assertSame('2026-10-21', $contact->last_contacted_at->toDateString());
+        $this->assertSame('2026-10-28', $contact->next_follow_up_at->toDateString());
+        $this->assertFalse(app(\App\Services\ContactService::class)->dueForFollowUp($contact->user)->contains($contact));
+    }
+
+    public function test_marking_followed_up_with_no_more_follow_ups_clears_the_date(): void
+    {
+        $contact = Contact::factory()->create(['next_follow_up_at' => today()]);
+
+        $this->actingAs($contact->user)->post(route('contacts.followed-up', $contact), ['next_in_days' => null]);
+
+        $this->assertNull($contact->fresh()->next_follow_up_at);
+        $this->assertNotNull($contact->fresh()->last_contacted_at);
+    }
+
+    public function test_follow_up_only_offers_the_listed_intervals(): void
+    {
+        $contact = Contact::factory()->create();
+
+        $this->actingAs($contact->user)
+            ->post(route('contacts.followed-up', $contact), ['next_in_days' => 9999])
+            ->assertSessionHasErrors('next_in_days');
+    }
+
+    public function test_cannot_mark_someone_elses_contact_as_followed_up(): void
+    {
+        $contact = Contact::factory()->create();
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('contacts.followed-up', $contact), ['next_in_days' => 7])
+            ->assertForbidden();
+    }
+
     public function test_user_cannot_view_someone_elses_contact(): void
     {
         $contact = Contact::factory()->create();

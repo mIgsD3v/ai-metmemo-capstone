@@ -109,6 +109,18 @@ class ContactService
     }
 
     /**
+     * You reached out today: record it and set the next follow-up (or none).
+     * This is what takes a contact off the "due" list and feeds "average days to follow up".
+     */
+    public function markFollowedUp(Contact $contact, ?int $nextInDays): Contact
+    {
+        return $this->contacts->update($contact, [
+            'last_contacted_at' => now(),
+            'next_follow_up_at' => $nextInDays ? today()->addDays($nextInDays) : null,
+        ]);
+    }
+
+    /**
      * @param  int  $withinDays  0 = due today or overdue; 7 = also those due in the coming week.
      * @return Collection<int, Contact>
      */

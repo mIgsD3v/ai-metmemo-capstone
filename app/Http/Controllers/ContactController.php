@@ -9,6 +9,7 @@ use App\Services\ContactService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -16,6 +17,9 @@ class ContactController extends Controller
 {
     /** Page sizes the list offers; anything else falls back to the first one. */
     private const PER_PAGE_OPTIONS = [10, 25, 50, 100];
+
+    /** "Mark as followed up" choices for the next follow-up; none means no more. */
+    private const NEXT_FOLLOW_UP_DAYS = [3, 7, 14, 30];
 
     public function __construct(
         private readonly ContactService $contacts,
@@ -80,6 +84,23 @@ class ContactController extends Controller
         $this->contacts->update($contact, $request->validated());
 
         return to_route('contacts.show', $contact)->with('flash.banner', 'Contact updated.');
+    }
+
+    public function followedUp(Request $request, Contact $contact): RedirectResponse
+    {
+        Gate::authorize('update', $contact);
+
+        $nextInDays = $request->validate([
+            'next_in_days' => ['nullable', 'integer', Rule::in(self::NEXT_FOLLOW_UP_DAYS)],
+        ])['next_in_days'] ?? null;
+
+        $contact = $this->contacts->markFollowedUp($contact, $nextInDays);
+
+        $next = $contact->next_follow_up_at
+            ? 'Next follow-up: '.$contact->next_follow_up_at->format('M j').'.'
+            : 'No more follow-ups scheduled.';
+
+        return back()->with('flash.banner', "Marked {$contact->full_name} as followed up. {$next}");
     }
 
     public function destroy(Contact $contact): RedirectResponse

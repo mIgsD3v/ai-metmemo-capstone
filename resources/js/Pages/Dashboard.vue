@@ -4,6 +4,7 @@ import { computed, ref } from 'vue';
 import { Deferred, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Dropdown from '@/Components/Dropdown.vue';
+import FollowUpMenu from '@/Components/FollowUpMenu.vue';
 import QrCode from '@/Components/QrCode.vue';
 import { copyText } from '@/clipboard';
 
@@ -149,8 +150,8 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
                             <p class="text-sm text-gray-500 mt-1">New contacts get a follow-up date two days after you meet.</p>
                         </div>
                         <ul v-else class="mt-3 divide-y divide-gray-200">
-                            <li v-for="contact in dueContacts" :key="contact.id">
-                                <Link :href="route('contacts.show', contact.id)" class="flex items-center gap-3 px-5 sm:px-6 py-3 hover:bg-gray-50 transition">
+                            <li v-for="contact in dueContacts" :key="contact.id" class="flex items-center gap-2 pe-5 sm:pe-6 hover:bg-gray-50 transition">
+                                <Link :href="route('contacts.show', contact.id)" class="flex min-w-0 flex-1 items-center gap-3 ps-5 sm:ps-6 py-3">
                                     <span class="flex items-center justify-center size-10 shrink-0 rounded-full bg-indigo-50 text-indigo-600 text-sm font-semibold">{{ initials(contact.full_name) }}</span>
                                     <span class="min-w-0 flex-1">
                                         <span class="block font-medium text-gray-900 truncate">{{ contact.full_name }}</span>
@@ -165,6 +166,7 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
                                         {{ dueLabel(contact.next_follow_up_at).text }}
                                     </span>
                                 </Link>
+                                <FollowUpMenu :contact-id="contact.id" variant="icon" class="shrink-0" />
                             </li>
                         </ul>
                     </section>
