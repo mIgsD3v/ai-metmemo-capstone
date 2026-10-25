@@ -54,8 +54,8 @@ NOTES = [
 
 
 @pytest.fixture
-def index(tmp_path):
-    notes_index = NotesIndex.persistent(str(tmp_path / "chroma"))
+def index():
+    notes_index = NotesIndex.connect(":memory:", dimensions=128)
     notes_index.upsert(NOTES, [FakeEmbedder.vector(n.body) for n in NOTES])
     return notes_index
 
@@ -112,8 +112,8 @@ def test_forget_one_users_notes_leaves_others(index):
 # ---- HTTP endpoints --------------------------------------------------------------------------
 
 @pytest.fixture
-def client(tmp_path):
-    notes_index = NotesIndex.persistent(str(tmp_path / "chroma-api"))
+def client():
+    notes_index = NotesIndex.connect(":memory:", dimensions=128)
     app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, internal_token="secret", openai_api_key="test")
     app.dependency_overrides[get_notes_index] = lambda: notes_index
     app.dependency_overrides[get_embedder] = lambda: FakeEmbedder()
@@ -173,9 +173,21 @@ def test_embedding_outage_is_a_clear_error_not_a_crash(client):
 
 
 def test_missing_api_key_reports_not_configured(tmp_path):
-    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, internal_token="", openai_api_key="", chroma_path=str(tmp_path / "c"))
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, internal_token="", openai_api_key="", qdrant_url=":memory:", embedding_dimensions=128)
     try:
         response = TestClient(app).post("/notes/search", json={"user_id": ALICE, "query": "quote"})
         assert response.status_code == 503
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_vector_store_outage_is_a_clear_error_not_a_crash():
+    # Nothing listens on this port, so connecting to Qdrant fails.
+    app.dependency_overrides[get_settings] = lambda: Settings(_env_file=None, internal_token="", openai_api_key="test", qdrant_url="http://127.0.0.1:1")
+    app.dependency_overrides[get_embedder] = lambda: FakeEmbedder()
+    try:
+        response = TestClient(app).post("/notes/search", json={"user_id": ALICE, "query": "quote"})
+        assert response.status_code == 503
+        assert response.json()["detail"] == "Notes search is unavailable right now"
     finally:
         app.dependency_overrides.clear()

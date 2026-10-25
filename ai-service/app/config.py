@@ -15,8 +15,11 @@ class Settings(BaseSettings):
     chat_model: str = "gpt-4o-mini"
     embedding_model: str = "text-embedding-3-small"
 
-    # Vector store for the owner's meeting notes (RAG). Chroma runs embedded, persisted to this folder.
-    chroma_path: str = "storage/chroma"
+    # Vector store for the owner's meeting notes (RAG): the Qdrant server.
+    qdrant_url: str = "http://localhost:6333"
+    qdrant_api_key: str = ""
+    # Must match embedding_model (text-embedding-3-small returns 1536 numbers per text).
+    embedding_dimensions: int = 1536
 
     redis_url: str = "redis://localhost:6379/0"
 

@@ -7,6 +7,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from openai import OpenAIError
+from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
 
 from app.deps import get_embedder, get_notes_index
 from app.embeddings import Embedder
@@ -27,12 +28,21 @@ async def embed_or_502(embedder: Embedder, texts: list[str]) -> list[list[float]
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Notes could not be processed right now") from error
 
 
+async def in_store(operation, *args):
+    """Run a (blocking) vector store call off the event loop; an outage is a clear 503, not a crash."""
+    try:
+        return await asyncio.to_thread(operation, *args)
+    except (ResponseHandlingException, UnexpectedResponse) as error:
+        logger.warning("vector store failed: %s", type(error).__name__)
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Notes search is unavailable right now") from error
+
+
 @router.post("/index", status_code=status.HTTP_204_NO_CONTENT)
 async def index_notes(request: IndexNotesRequest, index: Index, embedder: Annotated[Embedder, Depends(get_embedder)]) -> None:
     """Add or update notes (Laravel calls this when a note is saved, and in bulk to re-index)."""
     started = time.perf_counter()
     vectors = await embed_or_502(embedder, [note_text(note) for note in request.notes])
-    await asyncio.to_thread(index.upsert, request.notes, vectors)
+    await in_store(index.upsert, request.notes, vectors)
     # Counts and timing only; note text is personal data and never logged.
     logger.info("indexed %d notes in %.0f ms", len(request.notes), (time.perf_counter() - started) * 1000)
 
@@ -40,7 +50,7 @@ async def index_notes(request: IndexNotesRequest, index: Index, embedder: Annota
 @router.post("/forget", status_code=status.HTTP_204_NO_CONTENT)
 async def forget_notes(request: ForgetNotesRequest, index: Index) -> None:
     """Remove a note, a deleted contact's notes, or a deleted account's notes."""
-    await asyncio.to_thread(index.forget, request.user_id, request.contact_id, request.note_id)
+    await in_store(index.forget, request.user_id, request.contact_id, request.note_id)
 
 
 @router.post("/search", response_model=SearchNotesResponse)
@@ -48,6 +58,6 @@ async def search_notes(request: SearchNotesRequest, index: Index, embedder: Anno
     """The owner's notes most related to the query, best first. Always scoped to request.user_id."""
     started = time.perf_counter()
     [vector] = await embed_or_502(embedder, [request.query])
-    hits = await asyncio.to_thread(index.search, request.user_id, vector, request.limit, request.contact_id)
+    hits = await in_store(index.search, request.user_id, vector, request.limit, request.contact_id)
     logger.info("search returned %d hits in %.0f ms", len(hits), (time.perf_counter() - started) * 1000)
     return SearchNotesResponse(hits=hits)
