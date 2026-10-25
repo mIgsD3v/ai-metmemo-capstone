@@ -23,6 +23,46 @@ class ScanResponse(BaseModel):
     job_title: ScannedField
 
 
+# Notes index (RAG over the owner's meeting notes)
+class NoteIn(BaseModel):
+    note_id: str = Field(min_length=1, max_length=64)
+    user_id: str = Field(min_length=1, max_length=64)
+    contact_id: str = Field(min_length=1, max_length=64)
+    contact_name: str = Field(max_length=200)
+    body: str = Field(min_length=1, max_length=4000)
+    created_at: str = Field(max_length=40)
+
+
+class IndexNotesRequest(BaseModel):
+    notes: list[NoteIn] = Field(min_length=1, max_length=100)
+
+
+class ForgetNotesRequest(BaseModel):
+    user_id: str = Field(min_length=1, max_length=64)
+    contact_id: str | None = Field(default=None, max_length=64)
+    note_id: str | None = Field(default=None, max_length=64)
+
+
+class SearchNotesRequest(BaseModel):
+    user_id: str = Field(min_length=1, max_length=64)
+    query: str = Field(min_length=1, max_length=500)
+    contact_id: str | None = Field(default=None, max_length=64)
+    limit: int = Field(default=5, ge=1, le=20)
+
+
+class NoteHit(BaseModel):
+    note_id: str
+    contact_id: str
+    contact_name: str
+    created_at: str
+    body: str
+    score: float
+
+
+class SearchNotesResponse(BaseModel):
+    hits: list[NoteHit]
+
+
 # Follow-up assistant (owner, tool calling)
 class AssistantRequest(BaseModel):
     user_id: str

@@ -53,6 +53,42 @@ class AiServiceClient
         return $response->json();
     }
 
+    /**
+     * Add or update meeting notes in the assistant's search index.
+     *
+     * @param  array<int, array{note_id: string, user_id: string, contact_id: string, contact_name: string, body: string, created_at: string}>  $notes
+     *
+     * @throws AiServiceException
+     */
+    public function indexNotes(array $notes): void
+    {
+        $this->send('/notes/index', ['notes' => $notes], 'Notes could not be indexed.');
+    }
+
+    /**
+     * Remove notes from the search index: one contact's, or (with no contact) all of a user's.
+     *
+     * @throws AiServiceException
+     */
+    public function forgetNotes(string $userId, ?string $contactId = null): void
+    {
+        $this->send('/notes/forget', array_filter(['user_id' => $userId, 'contact_id' => $contactId]), 'Notes could not be removed.');
+    }
+
+    /** @throws AiServiceException */
+    private function send(string $path, array $payload, string $failure): void
+    {
+        try {
+            $response = $this->request()->post($path, $payload);
+        } catch (ConnectionException $e) {
+            throw new AiServiceException('The AI service is not reachable.', previous: $e);
+        }
+
+        if ($response->failed()) {
+            throw new AiServiceException($response->json('detail') ?: $failure, $response->status());
+        }
+    }
+
     private function request(): PendingRequest
     {
         return Http::baseUrl($this->baseUrl)

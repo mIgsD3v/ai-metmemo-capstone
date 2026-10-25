@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use App\Enums\ContactSource;
+use App\Observers\ContactObserver;
 use Database\Factories\ContactFactory;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[ObservedBy(ContactObserver::class)]
 class Contact extends Model
 {
     /** @use HasFactory<ContactFactory> */
