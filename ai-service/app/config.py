@@ -23,7 +23,9 @@ class Settings(BaseSettings):
     embedding_dimensions: int = 1536
 
     # The follow-up assistant reads contacts from Laravel's /internal API (same shared token, other direction).
-    laravel_url: str = "http://127.0.0.1:8000"
+    # Locally this is a second `php artisan serve` (port 8003): the dev server handles one request at a time,
+    # and the main one is busy waiting for this service while the assistant answers.
+    laravel_url: str = "http://127.0.0.1:8003"
     # System prompt variant: baseline | structured | grounded (see app/agent/prompts.py).
     assistant_prompt: Literal["baseline", "structured", "grounded"] = "grounded"
 

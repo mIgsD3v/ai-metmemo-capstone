@@ -75,6 +75,35 @@ class AiServiceClient
         $this->send('/notes/forget', array_filter(['user_id' => $userId, 'contact_id' => $contactId]), 'Notes could not be removed.');
     }
 
+    /**
+     * Ask the follow-up assistant. It reads only this user's contacts and notes, and never sends anything:
+     * drafts come back for the user to review.
+     *
+     * @param  array<int, array{role: string, content: string}>  $history  Earlier turns, oldest first.
+     * @return array{answer: string, tool_calls: list<string>, drafts: list<array>, sources: list<array>, steps: int}
+     *
+     * @throws AiServiceException
+     */
+    public function chat(string $userId, ?string $ownerName, string $message, array $history = []): array
+    {
+        try {
+            $response = $this->request()->post('/assistant/chat', [
+                'user_id' => $userId,
+                'owner_name' => $ownerName,
+                'message' => $message,
+                'history' => $history,
+            ]);
+        } catch (ConnectionException $e) {
+            throw new AiServiceException('The AI service is not reachable.', previous: $e);
+        }
+
+        if ($response->failed()) {
+            throw new AiServiceException($response->json('detail') ?: 'The assistant could not answer.', $response->status());
+        }
+
+        return $response->json();
+    }
+
     /** @throws AiServiceException */
     private function send(string $path, array $payload, string $failure): void
     {

@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AssistantController;
 use App\Http\Controllers\CardController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactExportController;
@@ -56,6 +57,10 @@ Route::middleware([
     Route::resource('contacts', ContactController::class);
     Route::post('/contacts/{contact}/followed-up', [ContactController::class, 'followedUp'])->name('contacts.followed-up');
     Route::post('/contacts/{contact}/notes', [ContactNoteController::class, 'store'])->name('contacts.notes.store');
+
+    // Follow-up assistant: asks the AI about your own contacts and notes; drafts only, never sends.
+    Route::get('/assistant', [AssistantController::class, 'show'])->name('assistant.show');
+    Route::post('/assistant/ask', [AssistantController::class, 'ask'])->middleware('throttle:20,1')->name('assistant.ask');
 
     // Scan a paper business card: photo -> AI reads fields -> owner reviews -> saved as a contact.
     Route::get('/scan', [ScanController::class, 'create'])->name('scan.create');

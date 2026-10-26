@@ -68,6 +68,23 @@ the urgency judgement on the model.
 contacts are the most urgent. Comparison run 2: the case passes for all three variants. Covered by
 `test_followups_are_split_by_urgency`.
 
+## F6. The Assistant page deadlocked on Laravel's dev server (fixed, operations)
+
+**Found:** 2026-10-26, first end-to-end test through the Assistant page (browser → Laravel → AI service).
+
+**What happened.** "Who should I follow up with today?" took **27 s** and answered *"I couldn't check for overdue
+follow-ups at the moment."* A question that only used `search_notes` (Qdrant) worked in 6.5 s.
+
+**Root cause.** The request goes browser → Laravel `/assistant/ask` → AI service → back to Laravel
+`/internal/.../followups`. `php artisan serve` (PHP's built-in server) answers one request at a time, and it can't run
+extra workers on Windows. It was still busy with `/assistant/ask`, so the AI service's call back waited in line until
+it timed out. The tool turned the timeout into an error message, so the assistant degraded gracefully instead of crashing.
+
+**Fix.** A second dev server only for the AI service's internal calls: `php artisan serve --port=8003` (added to
+`composer run dev` as "internal"), with `LARAVEL_URL=http://127.0.0.1:8003` for the AI service. The same question then
+answered with real data in **6.8 s**. In production, php-fpm handles requests in parallel, so this is a
+development-only setup.
+
 ## F4. Stale server answered with an old token (fixed, operations)
 
 **Found:** 2026-10-25. Swagger kept returning `401 Invalid internal token` although both `.env` files matched.
