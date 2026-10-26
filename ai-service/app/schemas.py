@@ -65,11 +65,39 @@ class SearchNotesResponse(BaseModel):
 
 # Follow-up assistant (owner, tool calling)
 class AssistantRequest(BaseModel):
-    user_id: str
+    user_id: str = Field(min_length=1, max_length=64)
+    # The owner's display name, so drafts are signed by them instead of "[Your Name]".
+    owner_name: str | None = Field(default=None, max_length=100)
     message: str = Field(min_length=1, max_length=2000)
-    history: list[ChatMessage] = []
+    # Conversation memory: earlier turns, oldest first. Laravel keeps the chat and sends it each time.
+    history: list[ChatMessage] = Field(default=[], max_length=20)
+
+
+class Source(BaseModel):
+    """A note the answer or a draft cites, as [N1], [N2]..."""
+
+    ref: str
+    note_id: str
+    contact_id: str
+    contact_name: str
+    created_at: str
+    body: str
+
+
+class Draft(BaseModel):
+    """A follow-up message for the user to review and send themselves. The assistant never sends it."""
+
+    contact_id: str
+    contact_name: str
+    channel: str
+    subject: str | None = None
+    body: str
+    sources: list[str] = []
 
 
 class AssistantResponse(BaseModel):
     answer: str
-    tool_calls: list[str] = []
+    tool_calls: list[str] = []  # tool names in the order they were called (tool-selection evaluation)
+    drafts: list[Draft] = []
+    sources: list[Source] = []
+    steps: int = 0

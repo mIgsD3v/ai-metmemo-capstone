@@ -1,44 +1,17 @@
 """Notes index (RAG): finds the right note, and only ever the owner's own notes."""
 
-import hashlib
-import math
-import re
-
 import pytest
 from fastapi.testclient import TestClient
-from openai import APIConnectionError
 
 from app.config import Settings, get_settings
 from app.deps import get_embedder, get_notes_index
 from app.main import app
 from app.notes_index import NotesIndex
 from app.schemas import NoteIn
+from fakes import BrokenEmbedder, FakeEmbedder
 
 ALICE = "0195f2a4-0000-7000-8000-00000000a11c"
 BOB = "0195f2a4-0000-7000-8000-000000000b0b"
-
-
-class FakeEmbedder:
-    """Bag-of-words hashed into a small vector: texts sharing words land close together. No API calls."""
-
-    calls = 0
-
-    async def embed(self, texts):
-        FakeEmbedder.calls += 1
-        return [self.vector(text) for text in texts]
-
-    @staticmethod
-    def vector(text, size=128):
-        v = [0.0] * size
-        for word in re.findall(r"[a-z0-9]+", text.lower()):
-            v[int(hashlib.md5(word.encode()).hexdigest(), 16) % size] += 1.0
-        norm = math.sqrt(sum(x * x for x in v)) or 1.0
-        return [x / norm for x in v]
-
-
-class BrokenEmbedder:
-    async def embed(self, texts):
-        raise APIConnectionError(request=None)
 
 
 def note(note_id, user_id, contact_id, name, body, created_at="2026-10-17T09:00:00+08:00"):

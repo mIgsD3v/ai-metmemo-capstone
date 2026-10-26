@@ -1,4 +1,5 @@
 from functools import lru_cache
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -20,6 +21,11 @@ class Settings(BaseSettings):
     qdrant_api_key: str = ""
     # Must match embedding_model (text-embedding-3-small returns 1536 numbers per text).
     embedding_dimensions: int = 1536
+
+    # The follow-up assistant reads contacts from Laravel's /internal API (same shared token, other direction).
+    laravel_url: str = "http://127.0.0.1:8000"
+    # System prompt variant: baseline | structured | grounded (see app/agent/prompts.py).
+    assistant_prompt: Literal["baseline", "structured", "grounded"] = "grounded"
 
     redis_url: str = "redis://localhost:6379/0"
 
