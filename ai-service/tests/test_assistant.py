@@ -139,7 +139,25 @@ async def test_calls_a_tool_then_answers_from_its_result(index):
 
     assert result.tool_calls == ["get_overdue_followups"]
     assert result.steps == 2
-    assert model.tool_output()["contacts"][0]["full_name"] == "Juan Dela Cruz"
+    assert model.tool_output()["overdue"][0]["full_name"] == "Juan Dela Cruz"
+
+
+async def test_followups_are_split_by_urgency(index):
+    today = {**ISABEL, "id": "c-today", "full_name": "Due Today", "next_follow_up_at": "2026-10-26"}
+    data = FakeContactData()
+    data.followups = lambda user_id, days: _async({"as_of": "2026-10-26", "contacts": [JUAN, today, ISABEL]})
+    model = ScriptedModel(call("get_overdue_followups"), say("Juan is overdue; one is due today."))
+
+    await run(model, toolbox(index, data))
+
+    out = model.tool_output()
+    assert [c["full_name"] for c in out["overdue"]] == ["Juan Dela Cruz"]
+    assert [c["full_name"] for c in out["due_today"]] == ["Due Today"]
+    assert [c["full_name"] for c in out["upcoming"]] == ["Isabel Navarro"]
+
+
+async def _async(value):
+    return value
 
 
 async def test_multi_step_plan_find_read_then_draft(index):
@@ -341,7 +359,7 @@ async def test_vector_store_down_only_disables_search(index):
     await run(model, tools)
 
     assert model.tool_output(index=0) == {"error": "Notes search is unavailable right now."}
-    assert model.tool_output(index=1)["contacts"][0]["full_name"] == "Juan Dela Cruz"
+    assert model.tool_output(index=1)["overdue"][0]["full_name"] == "Juan Dela Cruz"
 
 
 @pytest.mark.parametrize(

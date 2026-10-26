@@ -175,8 +175,16 @@ class Toolbox:
 
     async def get_overdue_followups(self, args: OverdueArgs) -> dict:
         data = await self._data.followups(self._user_id, args.days)
+        today = data.get("as_of")
         contacts = [self._contact(c) for c in data.get("contacts", [])]
-        return {"as_of": data.get("as_of"), "within_days": args.days, "contacts": contacts}
+        # Split by urgency: "today" questions must still surface overdue people first.
+        return {
+            "as_of": today,
+            "overdue": [c for c in contacts if c.get("days_overdue", 0) > 0],
+            "due_today": [c for c in contacts if not c.get("days_overdue") and c.get("next_follow_up_at") == today],
+            "upcoming": [c for c in contacts if not c.get("days_overdue") and c.get("next_follow_up_at") != today],
+            "note": "Overdue contacts are the most urgent; include them whenever the user asks who to follow up with.",
+        }
 
     async def find_contact(self, args: FindContactArgs) -> dict:
         data = await self._data.find_contacts(self._user_id, args.name)
