@@ -29,6 +29,7 @@ Route::get('/', function () {
 $uuid = '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 Route::pattern('card', $uuid);
 Route::pattern('contact', $uuid);
+Route::pattern('conversation', $uuid);
 Route::get('/c/{card}', [PublicCardController::class, 'show'])->name('public-card.show');
 Route::get('/c/{card}/vcard', [PublicCardController::class, 'vcard'])->name('public-card.vcard');
 Route::post('/c/{card}/leads', [PublicCardController::class, 'storeLead'])
@@ -61,6 +62,8 @@ Route::middleware([
     // Follow-up assistant: asks the AI about your own contacts and notes; drafts only, never sends.
     Route::get('/assistant', [AssistantController::class, 'show'])->name('assistant.show');
     Route::post('/assistant/ask', [AssistantController::class, 'ask'])->middleware('throttle:20,1')->name('assistant.ask');
+    Route::get('/assistant/{conversation}', [AssistantController::class, 'show'])->name('assistant.conversation');
+    Route::delete('/assistant/{conversation}', [AssistantController::class, 'destroy'])->name('assistant.destroy');
 
     // Scan a paper business card: photo -> AI reads fields -> owner reviews -> saved as a contact.
     Route::get('/scan', [ScanController::class, 'create'])->name('scan.create');

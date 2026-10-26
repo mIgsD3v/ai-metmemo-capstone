@@ -1,8 +1,10 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { nextTick, ref, watch } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { copyText } from '@/clipboard';
+import { ask as confirm } from '@/confirm';
+import { timeAgo } from '@/dates';
 
 const suggestions = [
     'Who should I follow up with today?',
@@ -20,35 +22,25 @@ const toolLabels = {
     draft_followup_message: 'wrote a draft',
 };
 
-// The conversation lives in this tab only (sessionStorage), so a refresh keeps it and closing the tab forgets it.
-const STORAGE_KEY = 'metmemo.assistant.chat';
-const restore = () => {
-    try {
-        return JSON.parse(sessionStorage.getItem(STORAGE_KEY)) ?? [];
-    } catch {
-        return [];
-    }
-};
+const props = defineProps({
+    conversations: Array, // saved chats, most recent first
+    conversation: Object, // the open chat with its messages, or null for a new one
+});
 
-const messages = ref(restore());
+// Chats are saved on the server. The memory the AI gets is read there too, from this chat's saved messages.
+const messages = ref([...(props.conversation?.messages ?? [])]);
 const draft = ref('');
 const sending = ref(false);
 const thread = ref(null);
 const input = ref(null);
+const showChats = ref(false); // phones: the chat list is behind a button
 
-watch(messages, (value) => {
-    try {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(value));
-    } catch {
-        // Private mode or storage full: the chat still works, it just won't survive a refresh.
-    }
-}, { deep: true });
-
-// Earlier turns sent as the assistant's memory (the server accepts up to 20).
-const history = computed(() => messages.value
-    .filter((message) => ! message.error)
-    .map((message) => ({ role: message.role, content: message.content }))
-    .slice(-20));
+// Opening another chat (or "New chat") swaps the messages.
+watch(() => props.conversation?.id, () => {
+    messages.value = [...(props.conversation?.messages ?? [])];
+    openSources.value = {};
+    showChats.value = false;
+});
 
 const scrollToEnd = async () => {
     await nextTick();
@@ -59,21 +51,22 @@ const ask = async (text = draft.value) => {
     const message = text.trim();
     if (! message || sending.value) return;
 
-    const memory = history.value;
     messages.value.push({ role: 'user', content: message });
     draft.value = '';
     sending.value = true;
     scrollToEnd();
 
     try {
-        const { data } = await window.axios.post(route('assistant.ask'), { message, history: memory });
-        messages.value.push({
-            role: 'assistant',
-            content: data.answer,
-            tools: data.tool_calls,
-            drafts: data.drafts,
-            sources: data.sources,
-        });
+        const { data } = await window.axios.post(route('assistant.ask'), { message, conversation_id: props.conversation?.id ?? null });
+        messages.value.push(data.message);
+
+        // A new chat gets its own address and joins the list; an old one moves to the top.
+        const reload = { preserveState: true, preserveScroll: true, only: ['conversations', 'conversation'] };
+        if (props.conversation?.id !== data.conversation.id) {
+            router.get(route('assistant.conversation', data.conversation.id), {}, { ...reload, replace: true });
+        } else {
+            router.reload({ ...reload, only: ['conversations'] });
+        }
     } catch (error) {
         messages.value.push({
             role: 'assistant',
@@ -99,10 +92,9 @@ const retry = (index) => {
     ask(question);
 };
 
-const newChat = () => {
-    messages.value = [];
-    draft.value = '';
-    nextTick(() => input.value?.focus());
+const deleteChat = async (chat) => {
+    const yes = await confirm({ title: 'Delete this chat?', message: `"${chat.title}" and its drafts will be gone. Your contacts and notes stay.` });
+    if (yes) router.delete(route('assistant.destroy', chat.id));
 };
 
 const onKeydown = (event) => {
@@ -152,19 +144,62 @@ const checked = (tools) => [...new Set((tools ?? []).map((name) => toolLabels[na
                     <h2 class="font-semibold text-xl text-gray-800 leading-tight">Assistant</h2>
                     <p class="text-sm text-gray-500 mt-1">Ask about your contacts and notes. It drafts follow-ups; you send them.</p>
                 </div>
-                <button
-                    v-if="messages.length"
-                    type="button"
-                    class="shrink-0 text-sm text-indigo-600 hover:underline disabled:opacity-50"
-                    :disabled="sending"
-                    @click="newChat"
-                >
-                    New chat
-                </button>
+                <div class="flex shrink-0 items-center gap-3">
+                    <button
+                        v-if="conversations.length"
+                        type="button"
+                        class="lg:hidden text-sm text-gray-600 hover:text-gray-900"
+                        :aria-expanded="showChats"
+                        @click="showChats = ! showChats"
+                    >
+                        Chats ({{ conversations.length }})
+                    </button>
+                    <Link v-if="conversation" :href="route('assistant.show')" class="text-sm text-indigo-600 hover:underline">New chat</Link>
+                </div>
             </div>
         </template>
 
-        <div class="page max-w-3xl py-6 sm:py-8">
+        <div class="page py-6 sm:py-8 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
+            <!-- Saved chats: a column on desktop, behind the "Chats" button on phones -->
+            <aside v-if="conversations.length" class="mb-6 lg:mb-0 lg:block" :class="showChats ? 'block' : 'hidden'">
+                <nav class="lg:sticky lg:top-24 rounded-2xl border border-gray-200 bg-white p-2" aria-label="Saved chats">
+                    <Link
+                        :href="route('assistant.show')"
+                        class="mb-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+                    >
+                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        New chat
+                    </Link>
+                    <ul class="max-h-[60vh] space-y-0.5 overflow-y-auto">
+                        <li v-for="chat in conversations" :key="chat.id" class="group relative">
+                            <Link
+                                :href="route('assistant.conversation', chat.id)"
+                                class="block rounded-lg py-2 ps-3 pe-9 text-sm transition"
+                                :class="chat.id === conversation?.id ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700 hover:bg-gray-50'"
+                                :aria-current="chat.id === conversation?.id ? 'page' : undefined"
+                            >
+                                <span class="block truncate">{{ chat.title }}</span>
+                                <span class="block text-[11px] text-gray-400">{{ timeAgo(chat.updated_at) }}</span>
+                            </Link>
+                            <button
+                                type="button"
+                                class="absolute end-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-600 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
+                                :aria-label="`Delete chat: ${chat.title}`"
+                                title="Delete chat"
+                                @click="deleteChat(chat)"
+                            >
+                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                </svg>
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <div class="mx-auto w-full max-w-3xl" :class="conversations.length ? '' : 'lg:col-span-2'">
             <!-- Empty state -->
             <section v-if="! messages.length" class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
                 <div class="flex items-center gap-3">
@@ -334,6 +369,7 @@ const checked = (tools) => [...new Set((tools ?? []).map((name) => toolLabels[na
                 </div>
             </form>
             <p class="mt-2 text-center text-[11px] text-gray-400">The assistant can make mistakes. Check drafts before you send them.</p>
+            </div>
         </div>
     </AppLayout>
 </template>

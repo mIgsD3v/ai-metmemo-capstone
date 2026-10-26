@@ -2,44 +2,65 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Ai\AiServiceClient;
+use App\Models\AssistantConversation;
+use App\Models\AssistantMessage;
 use App\Services\Ai\AiServiceException;
+use App\Services\AssistantService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
 /**
- * The follow-up assistant page. The AI service does the thinking; this controller decides whose data
- * it may read: always the signed-in user, never an id from the browser.
+ * The follow-up assistant page and its saved chats. The AI service does the thinking; this controller
+ * decides whose data it may read: always the signed-in user, never an id from the browser.
  */
 class AssistantController extends Controller
 {
     public function __construct(
-        private readonly AiServiceClient $ai,
+        private readonly AssistantService $assistant,
     ) {}
 
-    public function show(): Response
+    /** A new chat, or (with a conversation) an earlier one to read or continue. */
+    public function show(Request $request, ?AssistantConversation $conversation = null): Response
     {
-        return Inertia::render('Assistant');
+        if ($conversation) {
+            Gate::authorize('view', $conversation);
+        }
+
+        return Inertia::render('Assistant', [
+            'conversations' => $this->assistant->conversations($request->user())
+                ->map(fn (AssistantConversation $c) => ['id' => $c->id, 'title' => $c->title, 'updated_at' => $c->updated_at->toIso8601String()])
+                ->all(),
+            'conversation' => $conversation ? [
+                'id' => $conversation->id,
+                'title' => $conversation->title,
+                'messages' => $conversation->messages->map($this->message(...))->all(),
+            ] : null,
+        ]);
     }
 
-    /** One chat turn. The page keeps the conversation and sends the earlier turns as memory. */
+    /** One chat turn. Starts a conversation when there isn't one yet. */
     public function ask(Request $request): JsonResponse
     {
         $validated = $request->validate([
             'message' => ['required', 'string', 'max:2000'],
-            'history' => ['sometimes', 'array', 'max:20'],
-            'history.*.role' => ['required', 'string', 'in:user,assistant'],
-            'history.*.content' => ['required', 'string', 'max:2000'],
+            'conversation_id' => ['nullable', 'uuid'],
         ]);
 
         $user = $request->user();
+        $conversation = null;
+        if (isset($validated['conversation_id'])) {
+            // Someone else's chat looks the same as one that doesn't exist.
+            $conversation = $this->assistant->find($user, $validated['conversation_id']) ?? abort(404);
+        }
 
         try {
-            $reply = $this->ai->chat($user->id, $user->name, $validated['message'], $validated['history'] ?? []);
+            [$conversation, $answer] = $this->assistant->ask($user, $conversation, $validated['message']);
         } catch (AiServiceException $e) {
             // Status and reason only: the question itself is personal and stays out of the log.
             Log::warning('Assistant failed', ['status' => $e->getCode(), 'reason' => $e->getMessage()]);
@@ -50,11 +71,32 @@ class AssistantController extends Controller
         }
 
         return response()->json([
-            'answer' => $reply['answer'] ?? '',
-            'tool_calls' => $reply['tool_calls'] ?? [],
-            'drafts' => collect($reply['drafts'] ?? [])->map(fn (array $draft) => $draft + ['url' => $this->contactUrl($draft['contact_id'] ?? null)])->all(),
-            'sources' => collect($reply['sources'] ?? [])->map(fn (array $source) => $source + ['url' => $this->contactUrl($source['contact_id'] ?? null)])->all(),
+            'conversation' => ['id' => $conversation->id, 'title' => $conversation->title],
+            'message' => $this->message($answer),
         ]);
+    }
+
+    public function destroy(AssistantConversation $conversation): RedirectResponse
+    {
+        Gate::authorize('delete', $conversation);
+
+        $this->assistant->delete($conversation);
+
+        return to_route('assistant.show')->with('flash.banner', 'Chat deleted.');
+    }
+
+    private function message(AssistantMessage $message): array
+    {
+        $meta = $message->meta ?? [];
+
+        return [
+            'id' => $message->id,
+            'role' => $message->role,
+            'content' => $message->content,
+            'tools' => $meta['tool_calls'] ?? [],
+            'drafts' => collect($meta['drafts'] ?? [])->map(fn (array $draft) => $draft + ['url' => $this->contactUrl($draft['contact_id'] ?? null)])->all(),
+            'sources' => collect($meta['sources'] ?? [])->map(fn (array $source) => $source + ['url' => $this->contactUrl($source['contact_id'] ?? null)])->all(),
+        ];
     }
 
     /** A link to the contact (the contact page's own policy still checks ownership when it's opened). */
