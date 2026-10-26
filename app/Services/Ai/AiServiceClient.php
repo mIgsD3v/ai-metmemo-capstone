@@ -80,11 +80,12 @@ class AiServiceClient
      * drafts come back for the user to review.
      *
      * @param  array<int, array{role: string, content: string}>  $history  Earlier turns, oldest first.
-     * @return array{answer: string, tool_calls: list<string>, drafts: list<array>, sources: list<array>, steps: int}
+     * @param  ?string  $sessionId  The saved chat, so its turns group together in the traces.
+     * @return array{answer: string, tool_calls: list<string>, drafts: list<array>, sources: list<array>, steps: int, guardrails: list<string>}
      *
      * @throws AiServiceException
      */
-    public function chat(string $userId, ?string $ownerName, string $message, array $history = []): array
+    public function chat(string $userId, ?string $ownerName, string $message, array $history = [], ?string $sessionId = null): array
     {
         try {
             $response = $this->request()->post('/assistant/chat', [
@@ -92,6 +93,7 @@ class AiServiceClient
                 'owner_name' => $ownerName,
                 'message' => $message,
                 'history' => $history,
+                'session_id' => $sessionId,
             ]);
         } catch (ConnectionException $e) {
             throw new AiServiceException('The AI service is not reachable.', previous: $e);

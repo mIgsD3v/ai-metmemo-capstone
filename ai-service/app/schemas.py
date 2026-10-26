@@ -71,6 +71,8 @@ class AssistantRequest(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
     # Conversation memory: earlier turns, oldest first. Laravel keeps the chat and sends it each time.
     history: list[ChatMessage] = Field(default=[], max_length=20)
+    # The saved chat this turn belongs to, so the turns of one chat group together in the traces.
+    session_id: str | None = Field(default=None, max_length=64)
 
 
 class Source(BaseModel):
@@ -101,3 +103,4 @@ class AssistantResponse(BaseModel):
     drafts: list[Draft] = []
     sources: list[Source] = []
     steps: int = 0
+    guardrails: list[str] = []  # guardrail events that fired, e.g. "input.prompt_injection", "note.pii_masked_phone"

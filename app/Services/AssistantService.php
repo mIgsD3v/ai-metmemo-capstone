@@ -51,7 +51,7 @@ class AssistantService
                 ->all()
             : [];
 
-        $reply = $this->ai->chat($user->id, $user->name, $message, $memory);
+        $reply = $this->ai->chat($user->id, $user->name, $message, $memory, $conversation?->id);
 
         return DB::transaction(function () use ($user, $conversation, $message, $reply) {
             $conversation ??= $this->conversations->create($user, Str::limit(Str::squish($message), 80));
@@ -61,6 +61,7 @@ class AssistantService
                 'tool_calls' => $reply['tool_calls'] ?? [],
                 'drafts' => $reply['drafts'] ?? [],
                 'sources' => $reply['sources'] ?? [],
+                'guardrails' => $reply['guardrails'] ?? [],
             ]);
             $conversation->touch(); // most recently used goes to the top of the list
 

@@ -11,7 +11,8 @@ from app.agent.llm import ModelReply, ToolCall
 from app.agent.loop import GAVE_UP, MAX_STEPS, FollowUpAgent
 from app.agent.tools import TOOL_DEFINITIONS, LaravelContactData, Toolbox, ToolError
 from app.config import Settings, get_settings
-from app.deps import get_chat_model, get_contact_data, get_embedder, get_notes_index_opener
+from app.deps import get_chat_model, get_contact_data, get_embedder, get_moderator, get_notes_index_opener
+from app.guardrails import NoModerator
 from app.main import app
 from app.notes_index import NotesIndex
 from app.schemas import ChatMessage, NoteIn
@@ -425,6 +426,7 @@ def client(index):
     app.dependency_overrides[get_contact_data] = lambda: FakeContactData()
     app.dependency_overrides[get_notes_index_opener] = lambda: (lambda: index)
     app.dependency_overrides[get_embedder] = lambda: FakeEmbedder()
+    app.dependency_overrides[get_moderator] = lambda: NoModerator()
     yield use
     app.dependency_overrides.clear()
 

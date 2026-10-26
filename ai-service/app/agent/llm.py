@@ -5,6 +5,7 @@ from typing import Protocol
 
 from openai import AsyncOpenAI
 
+from app import tracing
 from app.config import Settings
 
 
@@ -31,16 +32,24 @@ class OpenAIChatModel:
         self._model = settings.chat_model
 
     async def complete(self, messages: list[dict], tools: list[dict], allow_tools: bool = True) -> ModelReply:
-        response = await self._client.chat.completions.create(
-            model=self._model,
-            messages=messages,
-            tools=tools,
-            # On the last step the tools stay declared (earlier tool messages need them) but can't be called.
-            tool_choice="auto" if allow_tools else "none",
-            temperature=0,  # as repeatable as possible: the evaluation compares runs
-        )
-        message = response.choices[0].message
-        return ModelReply(
-            content=message.content,
-            tool_calls=[ToolCall(call.id, call.function.name, call.function.arguments) for call in message.tool_calls or []],
-        )
+        with tracing.span("llm", generation=True, model=self._model, input=messages,
+                          model_parameters={"temperature": 0, "tool_choice": "auto" if allow_tools else "none"}) as generation:
+            response = await self._client.chat.completions.create(
+                model=self._model,
+                messages=messages,
+                tools=tools,
+                # On the last step the tools stay declared (earlier tool messages need them) but can't be called.
+                tool_choice="auto" if allow_tools else "none",
+                temperature=0,  # as repeatable as possible: the evaluation compares runs
+            )
+            message = response.choices[0].message
+            reply = ModelReply(
+                content=message.content,
+                tool_calls=[ToolCall(call.id, call.function.name, call.function.arguments) for call in message.tool_calls or []],
+            )
+            usage = response.usage
+            generation.update(
+                output={"content": reply.content, "tool_calls": [{"name": c.name, "arguments": c.arguments} for c in reply.tool_calls]},
+                usage_details={"input": usage.prompt_tokens, "output": usage.completion_tokens} if usage else None,
+            )
+            return reply

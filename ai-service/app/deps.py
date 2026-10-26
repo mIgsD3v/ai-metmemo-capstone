@@ -11,6 +11,7 @@ from app.agent.llm import ChatModel, OpenAIChatModel
 from app.agent.tools import ContactData, LaravelContactData
 from app.config import Settings, get_settings
 from app.embeddings import Embedder, OpenAIEmbedder
+from app.guardrails import Moderator, NoModerator, OpenAIModerator
 from app.notes_index import NotesIndex
 
 logger = logging.getLogger("ai-service.notes")
@@ -48,6 +49,10 @@ async def get_contact_data(settings: Annotated[Settings, Depends(get_settings)])
         yield data
     finally:
         await data.aclose()
+
+
+def get_moderator(settings: Annotated[Settings, Depends(get_settings)]) -> Moderator:
+    return OpenAIModerator(settings) if settings.openai_api_key else NoModerator()
 
 
 def get_embedder(settings: Annotated[Settings, Depends(get_settings)]) -> Embedder:

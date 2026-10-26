@@ -94,6 +94,7 @@ class AssistantController extends Controller
             'role' => $message->role,
             'content' => $message->content,
             'tools' => $meta['tool_calls'] ?? [],
+            'guardrails' => $meta['guardrails'] ?? [],
             'drafts' => collect($meta['drafts'] ?? [])->map(fn (array $draft) => $draft + ['url' => $this->contactUrl($draft['contact_id'] ?? null)])->all(),
             'sources' => collect($meta['sources'] ?? [])->map(fn (array $source) => $source + ['url' => $this->contactUrl($source['contact_id'] ?? null)])->all(),
         ];

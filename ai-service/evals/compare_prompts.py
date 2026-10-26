@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from app import tracing
 from app.agent.llm import OpenAIChatModel
 from app.agent.loop import AgentResult, FollowUpAgent
 from app.agent.prompts import VARIANTS
@@ -90,15 +91,20 @@ async def run_case(settings, variant: str, case: Case, user: str, owner: str):
     data = LaravelContactData(settings.laravel_url, settings.internal_token)
     tools = Toolbox(user, data, lambda: _notes_index(settings.qdrant_url, settings.qdrant_api_key, settings.embedding_dimensions), OpenAIEmbedder(settings))
     started = time.perf_counter()
-    try:
-        result = await FollowUpAgent(OpenAIChatModel(settings), variant).run(tools, case.question, owner_name=owner)
-    finally:
-        await data.aclose()
+    # One Langfuse trace per case, tagged so the runs can be filtered by variant and case.
+    with tracing.span(f"eval:{case.id}", input={"question": case.question}) as span:
+        tracing.update_trace(name=f"eval:{case.id}", user_id=user, tags=["eval:prompt-comparison", f"prompt:{variant}", f"case:{case.id}"])
+        try:
+            result = await FollowUpAgent(OpenAIChatModel(settings), variant).run(tools, case.question, owner_name=owner)
+        finally:
+            await data.aclose()
+        span.update(output={"answer": result.answer, "tool_calls": result.tool_calls, "drafts": len(result.drafts)})
     return result, time.perf_counter() - started
 
 
 async def main(user: str, owner: str, out: Path, variants: list[str]):
     settings = get_settings()
+    tracing.configure(settings)
     rows, details = {}, []
     for variant in variants:
         scores = {"tool": 0, "pass": 0, "steps": 0, "seconds": 0.0, "cases": {}}
@@ -141,7 +147,8 @@ async def main(user: str, owner: str, out: Path, variants: list[str]):
         lines.append(f"- **{variant} / {case.id}** {'✅' if passed else '❌'} tools `{result.tool_calls}`, {result.steps} steps, {seconds:.1f} s: {answer}{drafts}")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("\n".join(lines) + "\n", encoding="utf-8")
-    print(f"\nReport written to {out}")
+    tracing.flush()
+    print(f"\nReport written to {out}" + (" (runs traced in Langfuse, tag eval:prompt-comparison)" if tracing.enabled() else ""))
 
 
 if __name__ == "__main__":

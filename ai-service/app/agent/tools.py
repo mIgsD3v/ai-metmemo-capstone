@@ -17,7 +17,9 @@ from typing import Literal, Protocol
 import httpx
 from pydantic import BaseModel, Field, ValidationError, model_validator
 
+from app import tracing
 from app.embeddings import Embedder
+from app.guardrails import check_note
 from app.notes_index import NotesIndex
 from app.schemas import Draft, Source
 
@@ -157,10 +159,17 @@ class Toolbox:
         self.sources: dict[str, Source] = {}  # ref -> note
         self._refs: dict[str, str] = {}  # note id -> ref
         self.drafts: list[Draft] = []
+        self.guardrails: list[str] = []  # guardrail events fired on tool results (PII masked, injection flagged)
 
     definitions = TOOL_DEFINITIONS
 
     async def call(self, name: str, arguments: str) -> dict:
+        with tracing.span(f"tool:{name}", input=arguments) as span:
+            output = await self._call(name, arguments)
+            span.update(output=output, level="WARNING" if "error" in output else "DEFAULT")
+            return output
+
+    async def _call(self, name: str, arguments: str) -> dict:
         model = TOOLS.get(name)
         if model is None:
             return {"error": f"There is no tool called {name}."}
@@ -261,6 +270,8 @@ class Toolbox:
         return contact
 
     def _note(self, note_id: str, contact_id: str, contact_name: str, created_at: str, body: str) -> dict:
+        # Guardrail: the model sees notes with contact details masked, and flagged if they look like instructions.
+        body, warning, events = check_note(body)
         ref = self._refs.get(note_id)
         if ref is None:
             ref = f"N{len(self._refs) + 1}"
@@ -268,4 +279,8 @@ class Toolbox:
             self.sources[ref] = Source(
                 ref=ref, note_id=note_id, contact_id=contact_id, contact_name=contact_name, created_at=created_at, body=body
             )
-        return {"ref": ref, "contact_id": contact_id, "contact_name": contact_name, "written": created_at[:10], "text": body}
+            self.guardrails += events
+        note = {"ref": ref, "contact_id": contact_id, "contact_name": contact_name, "written": created_at[:10], "text": body}
+        if warning:
+            note["warning"] = warning
+        return note

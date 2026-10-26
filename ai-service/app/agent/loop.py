@@ -29,6 +29,7 @@ class AgentResult:
     sources: list[Source] = field(default_factory=list)
     steps: int = 0
     dropped_citations: list[str] = field(default_factory=list)  # refs the model invented (grounding check)
+    guardrails: list[str] = field(default_factory=list)  # guardrail events fired while answering
 
 
 class FollowUpAgent:
@@ -90,4 +91,5 @@ class FollowUpAgent:
             sources=[tools.sources[ref] for ref in used],
             steps=steps,
             dropped_citations=dropped,
+            guardrails=tools.guardrails + ([f"output.invented_citation x{len(dropped)}"] if dropped else []),
         )

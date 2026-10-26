@@ -133,6 +133,14 @@ const copyDraft = (item) => copyText(item.subject ? `Subject: ${item.subject}\n\
 
 const noteDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
+// Guardrail events worth telling the user about (PII masking is routine and stays quiet).
+const safetyNotice = (events = []) => {
+    if (events.some((e) => ['input.prompt_injection', 'input.bulk_pii_request'].includes(e))) return 'Blocked by a safety check: the assistant only helps with follow-ups and never shares contact details in bulk.';
+    if (events.some((e) => e.endsWith('.moderation'))) return 'Blocked by a safety check.';
+    if (events.includes('note.prompt_injection')) return 'A note contained instructions from someone else. The assistant treated it as text and did not follow it.';
+    return null;
+};
+
 const checked = (tools) => [...new Set((tools ?? []).map((name) => toolLabels[name] ?? name))].join(', ');
 </script>
 
@@ -267,6 +275,12 @@ const checked = (tools) => [...new Set((tools ?? []).map((name) => toolLabels[na
                                 </p>
                             </template>
                             <p v-if="message.tools?.length" class="pt-2 text-xs text-gray-400">Checked: {{ checked(message.tools) }}</p>
+                            <p v-if="safetyNotice(message.guardrails)" class="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
+                                <svg class="mt-px size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
+                                </svg>
+                                {{ safetyNotice(message.guardrails) }}
+                            </p>
                         </div>
 
                         <!-- Drafts -->
