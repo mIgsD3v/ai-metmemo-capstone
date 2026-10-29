@@ -30,6 +30,33 @@ Asked in a fresh conversation, the same question worked: `find_contact`, then `g
 - Measure the RAG metrics and the agent scenarios before and after. Langfuse traces show the tool choice
   and the retrieved notes for this question, before and after.
 
+## F7. An off-topic question was answered from the model's own (outdated) knowledge (open)
+
+**Found:** 2026-10-29, manual test on the Assistant page, model gpt-4o-mini, prompt `grounded`.
+
+**What happened.** The user asked:
+
+> who is the current president in philippines?
+
+The assistant called no tool and answered:
+
+> As of October 2023, the current president of the Philippines is Ferdinand "Bongbong" Marcos Jr. ...
+
+**Why it matters.** MetMemo's assistant is for the owner's contacts and notes. An answer from the model's
+training data is outside that scope, can't cite a note, and can be out of date ("As of October 2023"), so it
+breaks the grounding promise the rest of the prompt makes. The input guardrails let it through correctly:
+the question is neither unsafe nor an injection, just out of scope.
+
+**Root cause.** No prompt variant says what the assistant must *not* answer. The `grounded` rules ("if the
+notes don't say, answer I don't know") only cover questions about notes; a general-knowledge question never
+triggers them.
+
+**Planned fix (to measure in the evaluation, Oct 30).**
+- Add a scope rule to `grounded`: only answer about the owner's contacts, notes and follow-ups; for anything
+  else, say so briefly and offer what it can help with.
+- Off-topic questions are among the agent scenarios, so the baseline run records the failure and the rerun
+  shows the fix.
+
 ## F2. A contact with no notes was reported as a failure to check (fixed)
 
 **Found:** 2026-10-26. "What does Isabel Navarro want?" (she has no notes) once answered
