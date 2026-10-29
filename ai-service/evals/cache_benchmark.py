@@ -124,9 +124,9 @@ def write_report(out, settings, rows, query_cold, query_warm, reindex_cold, rein
         f"{(1 - statistics.mean(hit_ms) / statistics.mean(cold_ms)):.0%} faster, 100% of model cost |",
         f"| Similar but reworded question (×{n}) | {statistics.mean(cold_ms):,.0f} ms | {statistics.mean(similar_ms):,.0f} ms, "
         f"${statistics.mean(similar_cost):.5f} ({similar_hits}/{n} from cache) | none: exact-match only (see below) |",
-        f"| Embed a repeated search query | {query_cold:,.0f} ms | {query_warm:,.1f} ms | {(1 - query_warm / query_cold):.0%} faster, no API call |",
+        f"| Embed a repeated search query | {query_cold:,.0f} ms | {query_warm:,.1f} ms | {query_cold / query_warm:,.0f}× faster, no API call |",
         f"| Re-index all {notes} demo notes (unchanged) | {reindex_cold:,.0f} ms, 1 API call, ~{embed_tokens:,.0f} tokens | "
-        f"{reindex_warm:,.1f} ms, 0 API calls | {(1 - reindex_warm / reindex_cold):.0%} faster, ${embed_tokens / 1e6 * PRICE_EMBED:.6f} saved |",
+        f"{reindex_warm:,.1f} ms, 0 API calls | {reindex_cold / reindex_warm:,.0f}× faster, ${embed_tokens / 1e6 * PRICE_EMBED:.6f} saved |",
         "",
         "## Per question",
         "",
@@ -155,6 +155,9 @@ def write_report(out, settings, rows, query_cold, query_warm, reindex_cold, rein
         "",
         "- Exact-match only: a reworded question is a miss (row 2). A semantic cache could catch those, but a wrong",
         "  semantic hit would show one contact's answer for a different question; for personal data, exactness won.",
+        "- A cached answer still takes a few hundred ms: input guardrails (regex, then the OpenAI moderation call) run",
+        "  before the cache lookup on purpose, so a cache hit can never skip a safety check. Moderation is free, so this",
+        "  costs latency, not money.",
         "- Most questions in real use are new, so the biggest steady win is the embedding cache (re-indexing, repeated",
         "  searches) rather than the answer cache.",
     ]
