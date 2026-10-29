@@ -104,3 +104,5 @@ class AssistantResponse(BaseModel):
     sources: list[Source] = []
     steps: int = 0
     guardrails: list[str] = []  # guardrail events that fired, e.g. "input.prompt_injection", "note.pii_masked_phone"
+    cached: bool = False  # served from the answer cache: no model call
+    usage: dict[str, int] = {}  # model tokens this answer cost ({} when cached or blocked)

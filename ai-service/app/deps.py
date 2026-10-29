@@ -10,6 +10,7 @@ from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedR
 from app.agent.llm import ChatModel, OpenAIChatModel
 from app.agent.tools import ContactData, LaravelContactData
 from app.config import Settings, get_settings
+from app.cache import Cache, CachedEmbedder, NoCache, RedisCache
 from app.embeddings import Embedder, OpenAIEmbedder
 from app.guardrails import Moderator, NoModerator, OpenAIModerator
 from app.notes_index import NotesIndex
@@ -51,14 +52,25 @@ async def get_contact_data(settings: Annotated[Settings, Depends(get_settings)])
         await data.aclose()
 
 
+@lru_cache
+def _cache(url: str) -> Cache:
+    return RedisCache.from_url(url) if url else NoCache()
+
+
+def get_cache(settings: Annotated[Settings, Depends(get_settings)]) -> Cache:
+    """Redis when REDIS_URL is set (tests override this with an in-memory fake)."""
+    return _cache(settings.redis_url)
+
+
 def get_moderator(settings: Annotated[Settings, Depends(get_settings)]) -> Moderator:
     return OpenAIModerator(settings) if settings.openai_api_key else NoModerator()
 
 
-def get_embedder(settings: Annotated[Settings, Depends(get_settings)]) -> Embedder:
+def get_embedder(settings: Annotated[Settings, Depends(get_settings)], cache: Annotated[Cache, Depends(get_cache)]) -> Embedder:
     if not settings.openai_api_key:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Notes search is not configured")
-    return OpenAIEmbedder(settings)
+    # Unchanged notes and repeated queries are embedded once (see app/cache.py).
+    return CachedEmbedder(OpenAIEmbedder(settings), cache, settings.embedding_model)
 
 
 def verify_internal_token(

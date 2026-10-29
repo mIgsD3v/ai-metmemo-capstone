@@ -29,7 +29,8 @@ class Settings(BaseSettings):
     # System prompt variant: baseline | structured | grounded (see app/agent/prompts.py).
     assistant_prompt: Literal["baseline", "structured", "grounded"] = "grounded"
 
-    redis_url: str = "redis://localhost:6379/0"
+    # Caching (app/cache.py). Empty turns it off; the service works the same, only slower and dearer.
+    redis_url: str = ""
 
     langfuse_public_key: str = ""
     langfuse_secret_key: str = ""

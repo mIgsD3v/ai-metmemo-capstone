@@ -20,6 +20,8 @@ class ToolCall:
 class ModelReply:
     content: str | None
     tool_calls: list[ToolCall] = field(default_factory=list)
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class ChatModel(Protocol):
@@ -48,6 +50,8 @@ class OpenAIChatModel:
                 tool_calls=[ToolCall(call.id, call.function.name, call.function.arguments) for call in message.tool_calls or []],
             )
             usage = response.usage
+            if usage:
+                reply.input_tokens, reply.output_tokens = usage.prompt_tokens, usage.completion_tokens
             generation.update(
                 output={"content": reply.content, "tool_calls": [{"name": c.name, "arguments": c.arguments} for c in reply.tool_calls]},
                 usage_details={"input": usage.prompt_tokens, "output": usage.completion_tokens} if usage else None,

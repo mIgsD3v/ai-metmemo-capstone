@@ -30,6 +30,8 @@ class AgentResult:
     steps: int = 0
     dropped_citations: list[str] = field(default_factory=list)  # refs the model invented (grounding check)
     guardrails: list[str] = field(default_factory=list)  # guardrail events fired while answering
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class FollowUpAgent:
@@ -48,11 +50,14 @@ class FollowUpAgent:
         messages.append({"role": "user", "content": message})
 
         called: list[str] = []
+        tokens = [0, 0]
         for step in range(1, self._max_steps + 1):
             reply = await self._model.complete(messages, tools.definitions, allow_tools=step < self._max_steps)
+            tokens[0] += reply.input_tokens
+            tokens[1] += reply.output_tokens
 
             if not reply.tool_calls:
-                return self._finish(tools, reply.content or GAVE_UP, called, step)
+                return self._finish(tools, reply.content or GAVE_UP, called, step, tokens)
 
             messages.append(
                 {
@@ -70,10 +75,10 @@ class FollowUpAgent:
                 messages.append({"role": "tool", "tool_call_id": call.id, "content": json.dumps(output, ensure_ascii=False)})
 
         # Only reached if the model ignored tool_choice="none" on the last step.
-        return self._finish(tools, GAVE_UP, called, self._max_steps)
+        return self._finish(tools, GAVE_UP, called, self._max_steps, tokens)
 
     @staticmethod
-    def _finish(tools: Toolbox, answer: str, called: list[str], steps: int) -> AgentResult:
+    def _finish(tools: Toolbox, answer: str, called: list[str], steps: int, tokens: list[int]) -> AgentResult:
         # Keep citations that point at notes the tools really returned; drop invented ones.
         cited = CITATION.findall(answer)
         dropped = sorted({ref for ref in cited if ref not in tools.sources})
@@ -92,4 +97,6 @@ class FollowUpAgent:
             steps=steps,
             dropped_citations=dropped,
             guardrails=tools.guardrails + ([f"output.invented_citation x{len(dropped)}"] if dropped else []),
+            input_tokens=tokens[0],
+            output_tokens=tokens[1],
         )
