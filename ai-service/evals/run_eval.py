@@ -104,7 +104,8 @@ class Env:
             text=output.refusal or output.text,
             tool_calls=result.tool_calls,
             drafts=[{"contact_name": d.contact_name, "channel": d.channel, "body": d.body, "sources": d.sources} for d in result.drafts],
-            contexts=[source.body for source in tools.sources.values()],
+            # What the model saw: tools return each note with its contact's name, so the judge gets it too.
+            contexts=[f"Note about {source.contact_name}: {source.body}" for source in tools.sources.values()],
             steps=result.steps,
             seconds=time.perf_counter() - started,
             input_tokens=result.input_tokens,

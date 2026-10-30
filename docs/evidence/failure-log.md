@@ -57,6 +57,36 @@ triggers them.
 - Off-topic questions are among the agent scenarios, so the baseline run records the failure and the rerun
   shows the fix.
 
+## F8. A contact asked about by nickname was "not found" (open)
+
+**Found:** 2026-10-30, baseline evaluation (`eval-baseline.md`): golden question q06 and scenario s05.
+
+**What happened.** "What yield did the ROI sheet I sent Raffy Mendoza show?" was answered with
+*"I couldn't find any contact named Raffy Mendoza"*, and "Write a short Viber message to Raffy Mendoza..." ended
+with the assistant asking which Mendoza was meant, without drafting anything. The contact exists, saved as
+`Rafael "Raffy" Mendoza`.
+
+**Root cause.** `find_contact` searches with one `LIKE '%Raffy Mendoza%'` over the whole phrase, so the words must
+appear side by side, in that order. "Raffy Mendoza" never does in `Rafael "Raffy" Mendoza`. The model then retried
+with just "Mendoza", got two matches (Raffy and Liza) and asked. `LIKE` is also case-sensitive on PostgreSQL, so
+"raffy" would fail even alone.
+
+**Planned fix.** Match every word separately (each word must appear in the name, company, email or event), case-
+insensitively. Measured in the improvement run.
+
+## F9. The evaluation judged answers against note text without the contact's name (fixed, evaluation)
+
+**Found:** 2026-10-30, first baseline run. Faithfulness was 0.74, with correct answers scoring 0.00 (q03 "Juan
+Miguel Cruz can pre-qualify buyers within 48 hours", q08 "The client with bad knees is Grace Tan").
+
+**Root cause.** The RAGAS contexts were the note bodies alone. The agent's tools return each note *with* the
+contact's name, so the model rightly said "Grace Tan", but the judge saw a context that never names her and
+marked the claim unsupported. The same blind spot as F1, in the measurement instead of the index.
+
+**Fix.** Contexts are now what the model saw: `Note about <contact>: <note>`. Rerunning the unchanged app gave
+faithfulness 0.90; that corrected run is the baseline. Lesson: check low scores by reading the answer and the
+context before trusting the metric.
+
 ## F2. A contact with no notes was reported as a failure to check (fixed)
 
 **Found:** 2026-10-26. "What does Isabel Navarro want?" (she has no notes) once answered
