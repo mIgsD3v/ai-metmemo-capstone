@@ -1,0 +1,61 @@
+# Production stack for one small server (DigitalOcean droplet). Usage: deploy/README.md.
+# Only the web app is public (ports 80/443); the AI service, Postgres, Redis and Qdrant are on the
+# internal network. Secrets live in .env.production and ai-service/.env.production (never committed).
+
+services:
+  app:
+    build: .
+    image: metmemo-app
+    restart: unless-stopped
+    env_file: .env.production
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - app-storage:/app/storage # card photos, profile photos, logs
+      - caddy-data:/data # HTTPS certificates
+      - caddy-config:/config
+    depends_on: [postgres, ai]
+
+  # Daily follow-up reminders (routes/console.php, 08:00 Manila).
+  scheduler:
+    image: metmemo-app
+    restart: unless-stopped
+    env_file: .env.production
+    command: ["php", "artisan", "schedule:work"]
+    volumes:
+      - app-storage:/app/storage
+    depends_on: [app]
+
+  ai:
+    build: ./ai-service
+    restart: unless-stopped
+    env_file: ai-service/.env.production
+    depends_on: [qdrant, redis]
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    env_file: .env.production # POSTGRES_DB / POSTGRES_USER / POSTGRES_PASSWORD
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  # Embedding and answer cache (ai-service/app/cache.py). Entries expire by TTL; LRU if memory fills.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru", "--save", ""]
+
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+volumes:
+  app-storage:
+  caddy-data:
+  caddy-config:
+  postgres-data:
+  qdrant-data:
