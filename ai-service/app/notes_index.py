@@ -20,8 +20,12 @@ _POINT_NAMESPACE = uuid.UUID("6f1c3b0e-5d2a-4c8e-9f1a-2b7d4e6a8c10")
 
 
 def note_text(note: NoteIn) -> str:
-    """What gets embedded for a note. Kept in one place so retrieval experiments change one line."""
-    return note.body
+    """What gets embedded for a note. Kept in one place so retrieval experiments change one line.
+
+    The contact's name goes in too: most notes never say whose they are ("Seminar confirmed... I promised to
+    send the outline"), so without it a question naming the person can't find their notes (failure F1).
+    """
+    return f"{note.contact_name}: {note.body}"
 
 
 def point_id(note_id: str) -> str:

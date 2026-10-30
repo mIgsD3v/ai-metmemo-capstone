@@ -3,7 +3,7 @@
 Failures found while building and testing the assistant: what happened, the root cause, the fix, and
 the proof. The capstone's "debugged failure" and "targeted improvement" come from here.
 
-## F1. Asked about a person by name, the assistant searched by topic and found nothing (open)
+## F1. Asked about a person by name, the assistant searched by topic and found nothing (fixed)
 
 **Found:** 2026-10-26, manual test against the seeded demo account, model gpt-4o-mini, prompt `grounded`.
 
@@ -25,12 +25,23 @@ Asked in a fresh conversation, the same question worked: `find_contact`, then `g
    `ai-service/app/notes_index.py`). The contact's name is stored as metadata, not embedded, and Elena's note
    never says "Elena". So a query naming a person can't find that person's notes by meaning.
 
-**Planned fix (to measure in the evaluation, Oct 29).**
-- Embed the contact's name with the note (`note_text()` returns `"{contact_name}: {body}"`) and re-index.
-- Measure the RAG metrics and the agent scenarios before and after. Langfuse traces show the tool choice
-  and the retrieved notes for this question, before and after.
+**Fix (2026-10-30).** `note_text()` now embeds `"{contact_name}: {body}"`; the demo notes were re-indexed.
+Measured with the golden set's retrieval metrics (Qdrant search alone, no LLM):
 
-## F7. An off-topic question was answered from the model's own (outdated) knowledge (open)
+| | Before | After |
+|---|---|---|
+| Retrieval recall@5, questions naming a contact | 0.89 | 1.00 |
+| Retrieval MRR (all 20) | 0.91 | 1.00 |
+| q19 "What did I promise Elena Castillo?" top-5 | no Elena note | both Elena notes, ranks 1 and 2 |
+
+Scenario f04 (the mid-conversation question) passed in both runs: with temperature 0 and the F3 fix, the model
+now picks `get_contact_notes`. The retrieval fix makes `search_notes` correct too when it is chosen.
+
+*Debugging note.* The first re-index changed nothing: two old `uvicorn --reload` workers were still serving port
+8002 with the old code (killing a reloader leaves its worker running, as in F4). Found by comparing the stored
+vector with fresh embeddings of the old and new text (0.9998 vs 0.88), then stopping the orphaned workers.
+
+## F7. An off-topic question was answered from the model's own (outdated) knowledge (fixed, one case open)
 
 **Found:** 2026-10-29, manual test on the Assistant page, model gpt-4o-mini, prompt `grounded`.
 
@@ -51,13 +62,23 @@ the question is neither unsafe nor an injection, just out of scope.
 notes don't say, answer I don't know") only cover questions about notes; a general-knowledge question never
 triggers them.
 
-**Planned fix (to measure in the evaluation, Oct 30).**
-- Add a scope rule to `grounded`: only answer about the owner's contacts, notes and follow-ups; for anything
-  else, say so briefly and offer what it can help with.
-- Off-topic questions are among the agent scenarios, so the baseline run records the failure and the rerun
-  shows the fix.
+**Fix, in two attempts (2026-10-30).** Baseline: scenario f05 ❌ (the model answered "I don't know." instead
+of saying what it can help with).
+1. *First attempt* (`eval-improved-v1.md`): a scope rule, "only help with contacts, notes and follow-ups". f05
+   passed, but the model now refused real questions about clients: Kenji's housing allowance (q15), what Hannah
+   can afford (q18), how to reach Anton's brother (f08). It read money and family questions as general
+   knowledge. Context recall fell from 0.95 to 0.82 and task completion only rose by one. **Over-refusal:** a
+   tighter guardrail broke the main job.
+2. *Second attempt* (kept): the rule says what *is* in scope (anything mentioning a contact, including money,
+   family and how to reach someone), lists what is out (news, trivia, homework, coding), and says "if unsure,
+   check the tools first". f05 ✅, f08 ✅ again, q15 and q18 answered again.
 
-## F8. A contact asked about by nickname was "not found" (open)
+**Still open:** q06 ("What yield did the ROI sheet I sent Raffy Mendoza show?") is still refused as off-topic, so
+1 of 20 golden questions is over-refused. Not tuned further on purpose: more prompt edits aimed at one test
+question would overfit the evaluation. A next step would be a small classifier or a "call a tool before
+refusing" check in code rather than in the prompt.
+
+## F8. A contact asked about by nickname was "not found" (fixed)
 
 **Found:** 2026-10-30, baseline evaluation (`eval-baseline.md`): golden question q06 and scenario s05.
 
@@ -71,8 +92,10 @@ appear side by side, in that order. "Raffy Mendoza" never does in `Rafael "Raffy
 with just "Mendoza", got two matches (Raffy and Liza) and asked. `LIKE` is also case-sensitive on PostgreSQL, so
 "raffy" would fail even alone.
 
-**Planned fix.** Match every word separately (each word must appear in the name, company, email or event), case-
-insensitively. Measured in the improvement run.
+**Fix (2026-10-30).** `ContactRepository::whereMatches()` matches every word separately (each must appear in the
+name, company, email or event), case-insensitively (`whereLike`). New test:
+`test_contact_search_matches_each_word_in_any_order_and_case`. Scenario s05 now drafts the Viber message to Raffy
+(❌ → ✅). The contacts page search gets the same improvement.
 
 ## F9. The evaluation judged answers against note text without the contact's name (fixed, evaluation)
 

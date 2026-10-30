@@ -93,6 +93,17 @@ class InternalApiTest extends TestCase
         $this->assertSame([$mine->id], $response->json('contacts.*.id'));
     }
 
+    public function test_contact_search_matches_each_word_in_any_order_and_case(): void
+    {
+        $user = User::factory()->create();
+        $raffy = Contact::factory()->for($user)->create(['full_name' => 'Rafael "Raffy" Mendoza']);
+        Contact::factory()->for($user)->create(['full_name' => 'Liza Mendoza']);
+
+        $response = $this->internal(route('internal.contacts', [$user, 'search' => 'raffy mendoza']))->assertOk();
+
+        $this->assertSame([$raffy->id], $response->json('contacts.*.id'));
+    }
+
     public function test_contact_search_requires_a_query(): void
     {
         $user = User::factory()->create();

@@ -53,14 +53,22 @@ class ContactRepository implements ContactRepositoryInterface
         return $contact->notes()->take($limit)->get();
     }
 
+    /**
+     * Every word must appear in the name, company, email or event, in any order and any case, so
+     * "Raffy Mendoza" finds Rafael "Raffy" Mendoza (failure F8: the whole phrase used to be one LIKE).
+     */
     private function whereMatches($query, string $search)
     {
-        return $query->where(function ($query) use ($search) {
-            $query->where('full_name', 'like', "%{$search}%")
-                ->orWhere('company', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
-                ->orWhere('event', 'like', "%{$search}%");
-        });
+        foreach (preg_split('/\s+/', trim($search), -1, PREG_SPLIT_NO_EMPTY) as $word) {
+            $query->where(function ($query) use ($word) {
+                $query->whereLike('full_name', "%{$word}%")
+                    ->orWhereLike('company', "%{$word}%")
+                    ->orWhereLike('email', "%{$word}%")
+                    ->orWhereLike('event', "%{$word}%");
+            });
+        }
+
+        return $query;
     }
 
     public function recentForUser(User $user, int $limit): Collection
