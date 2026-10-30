@@ -1,0 +1,13 @@
+# Evaluation only (python -m evals.run_eval); the deployed service doesn't need these.
+#   pip install -r requirements.txt -r requirements-eval.txt
+# On Python 3.14, ragas's scikit-network dependency (used only to generate test sets) has no wheel and needs
+# a C++ compiler. Install ragas without it instead:
+#   pip install -r requirements.txt "langchain<0.4" "langchain-core<0.4" "langchain-community<0.4" "langchain-openai<0.4" \
+#       "datasets>=4" tiktoken nest-asyncio appdirs "diskcache>=5.6.3" typer rich tqdm instructor networkx
+#   pip install --no-deps ragas==0.4.3
+ragas==0.4.3
+# ragas 0.4.3 imports modules that langchain-community 0.4 removed
+langchain<0.4
+langchain-core<0.4
+langchain-community<0.4
+langchain-openai<0.4

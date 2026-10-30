@@ -72,6 +72,12 @@ def event(name: str, **fields: Any) -> None:
         _client.create_event(name=name, **fields)
 
 
+def score(name: str, value: float, comment: str | None = None) -> None:
+    """Attach a score (e.g. an evaluation metric) to the current trace."""
+    if _client is not None:
+        _client.score_current_trace(name=name, value=value, comment=comment)
+
+
 def trace_url() -> str | None:
     return _client.get_trace_url() if _client is not None else None
 
