@@ -9,7 +9,7 @@ export default defineConfig({
         // strictPort: if 5174 is taken, fail loudly instead of quietly moving to another port.
         port: 5174,
         strictPort: true,
-        hmr: { host: '192.168.1.10' },
+        hmr: { host: '192.168.1.9' },
     },
     plugins: [
         laravel({
