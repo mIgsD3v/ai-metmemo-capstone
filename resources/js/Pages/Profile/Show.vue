@@ -51,7 +51,7 @@ onMounted(() => {
                         v-if="$page.props.jetstream.managesProfilePhotos"
                         :src="user.profile_photo_url"
                         :alt="user.name"
-                        class="size-16 sm:size-20 shrink-0 rounded-full object-cover ring-4 ring-indigo-50"
+                        class="size-16 sm:size-20 shrink-0 rounded-full object-cover"
                     >
                     <div class="min-w-0 flex-1 lg:w-full">
                         <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-gray-900 truncate">{{ user.name }}</h1>

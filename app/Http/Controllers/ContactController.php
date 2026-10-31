@@ -18,6 +18,8 @@ class ContactController extends Controller
     /** Page sizes the list offers; anything else falls back to the first one. */
     private const PER_PAGE_OPTIONS = [10, 25, 50, 100];
 
+    private const DUE_FILTERS = ['overdue', 'week', 'none'];
+
     /** "Mark as followed up" choices for the next follow-up; none means no more. */
     private const NEXT_FOLLOW_UP_DAYS = [3, 7, 14, 30];
 
@@ -32,11 +34,13 @@ class ContactController extends Controller
         $cards = $this->cardOptions($request);
         $card = $this->cardFilter($request->query('card'), $cards);
         $perPage = $this->perPage($request->query('per_page'));
+        // Follow-up status tab. Anything else shows everyone.
+        $due = in_array($request->query('due'), self::DUE_FILTERS, true) ? $request->query('due') : null;
 
         return Inertia::render('Contacts/Index', [
-            'contacts' => $this->contacts->paginate($request->user(), $search, $card, $perPage),
+            'contacts' => $this->contacts->paginate($request->user(), $search, $card, $perPage, $due),
             'cards' => $cards,
-            'filters' => ['search' => $search, 'card' => $card, 'per_page' => $perPage],
+            'filters' => ['search' => $search, 'card' => $card, 'per_page' => $perPage, 'due' => $due],
             'perPageOptions' => self::PER_PAGE_OPTIONS,
         ]);
     }

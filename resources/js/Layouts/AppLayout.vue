@@ -83,7 +83,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
 
         <div class="min-h-screen bg-page">
             <!-- Phone top bar -->
-            <div class="lg:hidden sticky top-0 z-30 flex items-center justify-between h-14 px-4 bg-page/85 backdrop-blur border-b border-gray-200">
+            <div class="lg:hidden sticky top-0 z-30 flex items-center justify-between h-[60px] ps-4 pe-3 bg-page/85 backdrop-blur border-b border-gray-200">
                 <Link :href="route('dashboard')" aria-label="MetMemo home">
                     <ApplicationMark class="!text-2xl" />
                 </Link>
@@ -296,21 +296,21 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
 
             <!-- Phone tab bar -->
             <nav
-                class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 backdrop-blur border-t border-gray-200"
+                class="lg:hidden fixed inset-x-0 bottom-0 z-40 bg-white/95 dark:bg-gray-100/95 backdrop-blur border-t border-gray-200"
                 style="padding-bottom: env(safe-area-inset-bottom, 0px)"
                 aria-label="Main"
             >
-                <div class="grid grid-cols-5 h-16 max-w-md mx-auto">
+                <div class="grid grid-cols-5 items-end h-[66px] pb-2 px-1 max-w-md mx-auto">
                     <Link
                         v-for="item in nav.filter((item) => ! item.desktopOnly)"
                         :key="item.route"
                         :href="route(item.route)"
-                        class="relative flex flex-col items-center justify-center gap-1 text-[11px] font-medium transition"
+                        class="relative flex flex-col items-center justify-end gap-1 h-[52px] text-[11px] font-medium transition"
                         :class="route().current(item.match) ? 'text-indigo-600' : 'text-gray-500 hover:text-gray-800'"
                         :aria-current="route().current(item.match) ? 'page' : undefined"
                     >
                         <template v-if="item.primary">
-                            <span class="-mt-7 flex items-center justify-center size-14 rounded-full bg-accent text-accent-fg shadow-lg ring-4 ring-page">
+                            <span class="-mt-[30px] flex items-center justify-center size-[58px] rounded-full bg-accent text-accent-fg ring-[5px] ring-page shadow-[0_8px_22px_rgb(var(--accent)/0.28)] transition active:scale-95">
                                 <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
                                 </svg>

@@ -142,8 +142,8 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                 <section class="flex flex-wrap items-end justify-between gap-4">
                     <div class="space-y-1.5">
                         <p class="text-[13px] text-gray-500">{{ todayLabel }}</p>
-                        <h1 class="text-[30px] leading-tight font-bold tracking-[-0.025em] text-gray-900">{{ greeting }}, {{ firstName }}</h1>
-                        <p class="text-[15px] text-gray-500">{{ waitingLine }}</p>
+                        <h1 class="text-[26px] sm:text-[30px] leading-tight font-bold tracking-[-0.025em] text-gray-900">{{ greeting }}, {{ firstName }}</h1>
+                        <p class="hidden sm:block text-[15px] text-gray-500">{{ waitingLine }}</p>
                     </div>
                     <Deferred data="aiOnline">
                         <template #fallback>
@@ -161,8 +161,30 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                     </Deferred>
                 </section>
 
+                <!-- Phones: what's waiting, as the first thing on the screen -->
+                <section v-if="stats.due" class="sm:hidden flex flex-col gap-3.5 rounded-[18px] border border-amber-500/30 bg-amber-500/10 p-[18px]">
+                    <div class="flex items-center gap-3.5">
+                        <span class="flex size-12 shrink-0 items-center justify-center rounded-[14px] bg-amber-400/15 text-amber-600 dark:text-amber-300">
+                            <svg class="size-[22px]" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" :d="statIcons.clock" />
+                            </svg>
+                        </span>
+                        <div>
+                            <p class="text-xl font-bold tracking-[-0.01em] text-gray-900">{{ stats.due }} follow-up{{ stats.due === 1 ? '' : 's' }} due</p>
+                            <p v-if="dueContacts.length" class="text-[13px] text-amber-800 dark:text-amber-200/80">Oldest waiting since {{ formatDay(dueContacts[0].next_follow_up_at) }}</p>
+                        </div>
+                    </div>
+                    <Link
+                        :href="route('contacts.index', { due: 'overdue' })"
+                        class="flex h-[46px] items-center justify-center gap-2 rounded-xl bg-amber-500 text-[15px] font-semibold text-amber-950 transition active:scale-[0.98]"
+                    >
+                        Start catching up
+                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" /></svg>
+                    </Link>
+                </section>
+
                 <!-- Stats -->
-                <section class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <section class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
                     <Link
                         v-for="stat in stats"
                         :key="stat.label"
@@ -233,12 +255,17 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                                 <Link :href="route('contacts.show', contact.id)" class="flex min-w-0 flex-[1_1_160px] items-center gap-3.5">
                                     <span class="flex size-[38px] shrink-0 items-center justify-center rounded-full text-[13px] font-semibold" :class="avatarColor(contact.full_name)">{{ initials(contact.full_name) }}</span>
                                     <span class="min-w-0">
-                                        <span class="block truncate text-sm font-semibold text-gray-900">{{ contact.full_name }}</span>
-                                        <span class="block truncate text-[13px] text-gray-400">{{ contact.company || 'No company added' }}</span>
+                                        <span class="block truncate text-[15px] sm:text-sm font-semibold text-gray-900">{{ contact.full_name }}</span>
+                                        <!-- Phones show the status here instead of a pill -->
+                                        <span
+                                            class="block truncate text-[13px] sm:hidden"
+                                            :class="dueLabel(contact.next_follow_up_at).overdue ? 'text-amber-700 dark:text-amber-300' : 'text-gray-500'"
+                                        >{{ dueLabel(contact.next_follow_up_at).text }}</span>
+                                        <span class="hidden sm:block truncate text-[13px] text-gray-400">{{ contact.company || 'No company added' }}</span>
                                     </span>
                                 </Link>
                                 <span
-                                    class="inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium"
+                                    class="hidden sm:inline-flex h-[26px] shrink-0 items-center gap-1.5 rounded-full px-2.5 text-xs font-medium"
                                     :class="dueLabel(contact.next_follow_up_at).overdue ? 'bg-amber-400/15 text-amber-700 dark:text-amber-300' : 'bg-gray-50 text-gray-600'"
                                 >
                                     <svg class="size-[13px]" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
@@ -246,11 +273,15 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                                     </svg>
                                     {{ dueLabel(contact.next_follow_up_at).text }}
                                 </span>
-                                <Link :href="draftHref(contact)" class="btn-quiet h-9 shrink-0">
-                                    <svg class="size-[15px]" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
+                                <Link
+                                    :href="draftHref(contact)"
+                                    class="shrink-0 inline-flex size-11 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-50 sm:btn-quiet sm:size-auto sm:h-9 sm:rounded-[9px] sm:text-gray-800"
+                                    :aria-label="`Draft email to ${contact.full_name}`"
+                                >
+                                    <svg class="size-[19px] sm:size-[15px]" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
                                         <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09Z" />
                                     </svg>
-                                    Draft email
+                                    <span class="hidden sm:inline">Draft email</span>
                                 </Link>
                                 <FollowUpMenu :contact-id="contact.id" variant="icon" class="shrink-0" />
                             </div>
@@ -266,8 +297,8 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                     </div>
 
                     <div class="flex min-w-0 flex-[1_1_320px] flex-col gap-6">
-                        <!-- Scan call to action -->
-                        <section class="flex flex-col gap-3.5 rounded-[14px] border border-accent/25 bg-indigo-50 p-[22px]">
+                        <!-- Scan call to action (phones have the Scan button in the tab bar) -->
+                        <section class="hidden sm:flex flex-col gap-3.5 rounded-[14px] border border-accent/25 bg-indigo-50 p-[22px]">
                             <p class="eyebrow !text-indigo-600">AI card scanner</p>
                             <div class="space-y-1.5">
                                 <h2 class="text-lg font-semibold tracking-[-0.01em] text-gray-900">Met someone? Scan their card.</h2>
@@ -367,7 +398,23 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                     <p v-if="! recentContacts.length" class="border-t border-gray-200 px-5 py-10 text-center text-sm text-gray-500">
                         No contacts yet. Scan a card or share your QR code at your next meeting.
                     </p>
-                    <div v-else class="overflow-x-auto">
+                    <!-- Phones: a list -->
+                    <ul v-if="recentContacts.length" class="sm:hidden">
+                        <li v-for="contact in recentContacts" :key="contact.id" class="border-t border-gray-200">
+                            <Link :href="route('contacts.show', contact.id)" class="flex items-center gap-3 px-3.5 py-3 active:bg-gray-50">
+                                <span class="flex size-[38px] shrink-0 items-center justify-center rounded-full text-[13px] font-semibold" :class="avatarColor(contact.full_name)">{{ initials(contact.full_name) }}</span>
+                                <span class="min-w-0 flex-1">
+                                    <span class="block truncate text-[15px] font-semibold text-gray-900">{{ contact.full_name }}</span>
+                                    <span class="flex items-center gap-1.5 text-[13px] text-gray-500">
+                                        <span class="size-1.5 rounded-sm" :class="sources[contact.source]?.dot ?? 'bg-gray-400'" />
+                                        {{ sources[contact.source]?.label ?? contact.source }}
+                                    </span>
+                                </span>
+                                <span class="shrink-0 text-xs text-gray-400">{{ addedLabel(contact.created_at) }}</span>
+                            </Link>
+                        </li>
+                    </ul>
+                    <div v-if="recentContacts.length" class="hidden sm:block overflow-x-auto">
                         <table class="w-full min-w-[640px] border-collapse text-sm">
                             <thead>
                                 <tr class="text-start text-xs text-gray-400">

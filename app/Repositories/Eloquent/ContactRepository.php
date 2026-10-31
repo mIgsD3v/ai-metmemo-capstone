@@ -13,9 +13,9 @@ use Illuminate\Support\LazyCollection;
 
 class ContactRepository implements ContactRepositoryInterface
 {
-    public function paginateForUser(User $user, ?string $search = null, ?string $card = null, int $perPage = 10): LengthAwarePaginator
+    public function paginateForUser(User $user, ?string $search = null, ?string $card = null, int $perPage = 10, ?string $due = null): LengthAwarePaginator
     {
-        return $this->filtered($user, $search, $card)
+        return $this->filtered($user, $search, $card, $due)
             ->with('card:id,full_name,job_title')
             ->paginate($perPage)
             ->withQueryString();
@@ -30,9 +30,13 @@ class ContactRepository implements ContactRepositoryInterface
     }
 
     /** The Contacts list's filters, shared by the page and its exports so both show the same people. */
-    private function filtered(User $user, ?string $search, ?string $card)
+    private function filtered(User $user, ?string $search, ?string $card, ?string $due = null)
     {
         return $user->contacts()
+            // Follow-up status: overdue (before today), due within the next 7 days, or no reminder set.
+            ->when($due === 'overdue', fn ($query) => $query->whereDate('next_follow_up_at', '<', today()))
+            ->when($due === 'week', fn ($query) => $query->whereDate('next_follow_up_at', '>=', today())->whereDate('next_follow_up_at', '<=', today()->addDays(7)))
+            ->when($due === 'none', fn ($query) => $query->whereNull('next_follow_up_at'))
             ->when($card === 'none', fn ($query) => $query->whereNull('card_id'))
             ->when($card !== null && $card !== 'none', fn ($query) => $query->where('card_id', $card))
             ->when($search, fn ($query, string $search) => $this->whereMatches($query, $search))

@@ -28,9 +28,9 @@ class ContactService
     /**
      * @param  string|null  $card  A card id, "none" for contacts not captured by a card, or null for all.
      */
-    public function paginate(User $user, ?string $search = null, ?string $card = null, int $perPage = 10): LengthAwarePaginator
+    public function paginate(User $user, ?string $search = null, ?string $card = null, int $perPage = 10, ?string $due = null): LengthAwarePaginator
     {
-        return $this->contacts->paginateForUser($user, $search, $card, $perPage);
+        return $this->contacts->paginateForUser($user, $search, $card, $perPage, $due);
     }
 
     /** @return Collection<int, Contact> */

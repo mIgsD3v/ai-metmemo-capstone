@@ -178,6 +178,28 @@ class ContactManagementTest extends TestCase
                 ->where('filters.per_page', 10));
     }
 
+    public function test_contacts_can_be_filtered_by_follow_up_status(): void
+    {
+        $this->travelTo('2026-10-31');
+        $user = User::factory()->create();
+        Contact::factory()->for($user)->create(['full_name' => 'Overdue', 'next_follow_up_at' => '2026-10-27']);
+        Contact::factory()->for($user)->create(['full_name' => 'This week', 'next_follow_up_at' => '2026-11-03']);
+        Contact::factory()->for($user)->create(['full_name' => 'Later', 'next_follow_up_at' => '2026-11-20']);
+        Contact::factory()->for($user)->create(['full_name' => 'No reminder', 'next_follow_up_at' => null]);
+
+        foreach (['overdue' => 'Overdue', 'week' => 'This week', 'none' => 'No reminder'] as $due => $name) {
+            $this->actingAs($user)->get(route('contacts.index', ['due' => $due]))
+                ->assertInertia(fn ($page) => $page
+                    ->has('contacts.data', 1)
+                    ->where('contacts.data.0.full_name', $name)
+                    ->where('filters.due', $due));
+        }
+
+        // An unknown value shows everyone.
+        $this->actingAs($user)->get(route('contacts.index', ['due' => 'drop table']))
+            ->assertInertia(fn ($page) => $page->has('contacts.data', 4)->where('filters.due', null));
+    }
+
     public function test_contacts_can_be_filtered_by_card(): void
     {
         $user = User::factory()->create();

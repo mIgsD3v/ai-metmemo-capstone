@@ -15,7 +15,7 @@ interface ContactRepositoryInterface
     /**
      * @param  string|null  $card  A card id, "none" for contacts not captured by a card, or null for all.
      */
-    public function paginateForUser(User $user, ?string $search = null, ?string $card = null, int $perPage = 10): LengthAwarePaginator;
+    public function paginateForUser(User $user, ?string $search = null, ?string $card = null, int $perPage = 10, ?string $due = null): LengthAwarePaginator;
 
     /**
      * Same filters and order as paginateForUser, every match, with card and notes, read in chunks.
