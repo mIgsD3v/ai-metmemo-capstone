@@ -92,6 +92,7 @@ const sources = {
     manual: { label: 'Added by hand', dot: 'bg-accent' },
     lead_form: { label: 'Card form', dot: 'bg-orange-500' },
     scan: { label: 'Scanned', dot: 'bg-blue-500' },
+    swap: { label: 'Card swap', dot: 'bg-violet-500' },
 };
 
 // The card being shared. The last one picked is remembered in this browser; otherwise the newest.

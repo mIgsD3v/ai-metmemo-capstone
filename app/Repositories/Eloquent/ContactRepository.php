@@ -119,6 +119,11 @@ class ContactRepository implements ContactRepositoryInterface
         return $contact;
     }
 
+    public function findSwapped(User $owner, User $other): ?Contact
+    {
+        return $owner->contacts()->where('swapped_user_id', $other->getKey())->first();
+    }
+
     public function delete(Contact $contact): void
     {
         $contact->delete();

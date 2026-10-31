@@ -33,8 +33,8 @@ class InsightsTest extends TestCase
             ->component('Insights')
             ->where('insights.range', ['weeks' => 4, 'from' => '2026-09-28', 'to' => '2026-10-21'])
             ->has('insights.weekly', 4)
-            ->where('insights.weekly.1', ['week' => '2026-10-05', 'manual' => 1, 'lead_form' => 0, 'scan' => 0])
-            ->where('insights.weekly.3', ['week' => '2026-10-19', 'manual' => 0, 'lead_form' => 1, 'scan' => 1])
+            ->where('insights.weekly.1', ['week' => '2026-10-05', 'manual' => 1, 'lead_form' => 0, 'scan' => 0, 'swap' => 0])
+            ->where('insights.weekly.3', ['week' => '2026-10-19', 'manual' => 0, 'lead_form' => 1, 'scan' => 1, 'swap' => 0])
             ->where('insights.totals.contacts', 3)
             ->where('insights.totals.fromCards', 1));
     }

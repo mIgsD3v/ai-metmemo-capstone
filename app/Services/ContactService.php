@@ -7,6 +7,7 @@ use App\Models\Card;
 use App\Models\Contact;
 use App\Models\ContactNote;
 use App\Models\User;
+use App\Notifications\CardsSwapped;
 use App\Notifications\FollowUpsDue;
 use App\Notifications\NewLeadCaptured;
 use App\Repositories\Contracts\ContactRepositoryInterface;
@@ -179,6 +180,66 @@ class ContactService
         }
 
         return $contact;
+    }
+
+    /**
+     * Two MetMemo users swap cards: $visitor, signed in, on $theirs (someone else's public card). Each gets the
+     * other as a contact, filled from the card they share ($mine, or the visitor's account if they have no card),
+     * with the usual follow-up date. Each copy stays private to its owner. Swapping again refreshes the details of
+     * the existing contacts (notes and follow-up dates are kept) instead of adding duplicates.
+     *
+     * @return Contact The visitor's new (or refreshed) contact for the card owner.
+     */
+    public function swapCards(Card $theirs, User $visitor, ?Card $mine): Contact
+    {
+        $owner = $theirs->user;
+
+        $visitorDetails = $mine
+            ? $mine->only(['full_name', 'email', 'phone', 'company', 'job_title'])
+            : ['full_name' => $visitor->name, 'email' => $visitor->email];
+
+        [$forOwner, $isNew] = DB::transaction(function () use ($owner, $visitor, $theirs, $mine, $visitorDetails) {
+            [$forOwner, $isNew] = $this->saveSwapContact($owner, $visitor, $visitorDetails, $theirs->id);
+            $this->saveSwapContact($visitor, $owner, $theirs->only(['full_name', 'email', 'phone', 'company', 'job_title']), $mine?->id);
+
+            return [$forOwner, $isNew];
+        });
+
+        // Only the first swap is news to the owner; a refresh isn't.
+        if ($isNew) {
+            try {
+                $owner->notify(new CardsSwapped($forOwner, $theirs));
+            } catch (Throwable $e) {
+                report($e);
+            }
+        }
+
+        return $this->contacts->findSwapped($visitor, $owner);
+    }
+
+    /** The contact $owner has from swapping cards with $other, if any. */
+    public function swappedWith(User $owner, User $other): ?Contact
+    {
+        return $this->contacts->findSwapped($owner, $other);
+    }
+
+    /** @return array{0: Contact, 1: bool} The contact, and whether it was just created. */
+    private function saveSwapContact(User $owner, User $other, array $details, ?string $cardId): array
+    {
+        $existing = $this->contacts->findSwapped($owner, $other);
+
+        if ($existing) {
+            return [$this->contacts->update($existing, $details), false];
+        }
+
+        return [$this->contacts->create($owner, [
+            ...$details,
+            'card_id' => $cardId,
+            'swapped_user_id' => $other->getKey(),
+            'source' => ContactSource::Swap,
+            'met_at' => today(),
+            'next_follow_up_at' => today()->addDays(self::DEFAULT_FOLLOW_UP_DAYS),
+        ]), true];
     }
 
     /**

@@ -10,6 +10,8 @@ import { copyText } from '@/clipboard';
 const props = defineProps({
     card: Object,
     publicUrl: String,
+    // A signed-in visitor: { isOwner } for the card's owner, else { name, cards, swappedContactId }. Null for guests.
+    viewer: Object,
 });
 
 const initials = props.card.full_name
@@ -81,6 +83,11 @@ const lead = useForm({
     company: '',
     message: '',
 });
+
+// Swap cards (signed-in visitors): send one of your cards, newest first by default.
+const swap = useForm({ card_id: props.viewer?.cards?.[0]?.id ?? null });
+const submitSwap = () => swap.post(route('public-card.swap', props.card.id));
+const viewerInitials = (props.viewer?.name ?? '').split(/\s+/).filter(Boolean).map((word) => word[0]).slice(0, 2).join('').toUpperCase();
 
 const sent = ref(false);
 const submitLead = () => {
@@ -189,9 +196,57 @@ const labelClass = 'flex flex-col gap-[7px] text-[13px] font-medium text-gray-60
                 </ul>
             </article>
 
-            <!-- Swap contacts: the lead form -->
+            <!-- Swap contacts: one tap for a signed-in MetMemo user, the lead form for everyone else -->
             <section class="mx-4 mt-4 overflow-hidden rounded-[18px] sm:mx-0 sm:rounded-3xl border border-gray-200 bg-white lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:mt-0">
-                <div v-if="sent" class="space-y-2 px-6 py-10 text-center">
+                <!-- The owner looking at their own card -->
+                <div v-if="viewer?.isOwner" class="space-y-3 px-6 py-10 text-center">
+                    <p class="text-xs font-semibold uppercase tracking-[0.08em] text-indigo-600">Your card</p>
+                    <h2 class="text-xl font-bold tracking-[-0.02em]">This is how people see your card</h2>
+                    <p class="mx-auto max-w-sm text-sm leading-relaxed text-gray-500">Visitors can save you to their phone here, leave their details, or swap cards in one tap if they use MetMemo too.</p>
+                    <Link :href="route('cards.index')" class="btn-quiet h-10 px-4 text-sm">Go to My Cards</Link>
+                </div>
+
+                <!-- A signed-in MetMemo user: swap cards both ways in one tap -->
+                <template v-else-if="viewer">
+                    <div class="space-y-1.5 px-[18px] pt-5 sm:px-6 sm:pt-6">
+                        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-indigo-600">Swap cards</p>
+                        <h2 class="text-xl sm:text-[22px] font-bold tracking-[-0.02em]">
+                            {{ viewer.swappedContactId ? `You and ${firstName} already swapped` : `Swap cards with ${firstName}` }}
+                        </h2>
+                        <p class="text-sm leading-relaxed text-gray-500">
+                            One tap: {{ firstName }} gets your card, and {{ firstName }} is added to your MetMemo contacts. You both get a
+                            follow-up reminder. Your notes stay private to you.
+                        </p>
+                    </div>
+                    <form class="flex flex-col gap-4 p-[18px] sm:p-6 sm:pt-5" @submit.prevent="submitSwap">
+                        <div class="flex items-center gap-3 rounded-xl border border-gray-200 bg-gray-100 p-3.5">
+                            <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/15 text-sm font-bold text-indigo-600">{{ viewerInitials }}</span>
+                            <span class="min-w-0 flex-1">
+                                <span class="block text-xs text-gray-400">Signed in as</span>
+                                <span class="block truncate text-[15px] font-semibold">{{ viewer.name }}</span>
+                            </span>
+                        </div>
+                        <label v-if="viewer.cards.length > 1" :class="labelClass">
+                            Send this card
+                            <select v-model="swap.card_id" :class="fieldClass">
+                                <option v-for="mine in viewer.cards" :key="mine.id" :value="mine.id">
+                                    {{ [mine.full_name, mine.job_title, mine.company].filter(Boolean).join(' · ') }}
+                                </option>
+                            </select>
+                        </label>
+                        <p v-else-if="! viewer.cards.length" class="text-xs text-gray-400">You have no card yet, so {{ firstName }} gets your name and email.</p>
+                        <InputError :message="swap.errors.card_id" />
+                        <button type="submit" class="btn-accent h-[54px] sm:h-[52px] gap-2 rounded-[14px] py-0 text-base" :disabled="swap.processing">
+                            <svg class="size-[18px]" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                            {{ swap.processing ? 'Swapping…' : (viewer.swappedContactId ? 'Swap again to update' : 'Swap cards') }}
+                        </button>
+                        <Link v-if="viewer.swappedContactId" :href="route('contacts.show', viewer.swappedContactId)" class="text-center text-sm font-medium text-indigo-600 hover:underline">
+                            Open {{ firstName }} in your contacts
+                        </Link>
+                    </form>
+                </template>
+
+                <div v-else-if="sent" class="space-y-2 px-6 py-10 text-center">
                     <div class="mx-auto flex size-12 items-center justify-center rounded-full bg-accent/15 text-indigo-600">
                         <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" /></svg>
                     </div>
@@ -243,6 +298,10 @@ const labelClass = 'flex flex-col gap-[7px] text-[13px] font-medium text-gray-60
                             {{ lead.processing ? 'Sending…' : 'Send my details' }}
                             <svg v-if="! lead.processing" class="size-[17px]" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" :d="icons.arrow" /></svg>
                         </button>
+                        <p class="text-center text-[13px] text-gray-500">
+                            Use MetMemo?
+                            <a :href="route('public-card.swap.start', card.id)" class="font-medium text-indigo-600 hover:underline">Log in to swap cards in one tap</a>
+                        </p>
                     </form>
                 </template>
             </section>

@@ -21,6 +21,7 @@ class Contact extends Model
 
     protected $fillable = [
         'card_id',
+        'swapped_user_id',
         'full_name',
         'email',
         'phone',

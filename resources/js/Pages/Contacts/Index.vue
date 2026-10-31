@@ -86,6 +86,7 @@ const sources = {
     manual: { label: 'Added by hand', dot: 'bg-accent' },
     lead_form: { label: 'Card form', dot: 'bg-orange-500' },
     scan: { label: 'Scanned', dot: 'bg-blue-500' },
+    swap: { label: 'Card swap', dot: 'bg-violet-500' },
 };
 
 // Exports use the filters the list is showing (not text still being typed), so you get what you see.

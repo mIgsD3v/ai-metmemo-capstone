@@ -48,6 +48,9 @@ interface ContactRepositoryInterface
 
     public function update(Contact $contact, array $attributes): Contact;
 
+    /** The contact $owner got from swapping cards with $other, if they have swapped before. */
+    public function findSwapped(User $owner, User $other): ?Contact;
+
     public function delete(Contact $contact): void;
 
     public function addNote(Contact $contact, string $body): ContactNote;

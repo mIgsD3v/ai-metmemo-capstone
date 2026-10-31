@@ -36,6 +36,11 @@ Route::get('/c/{card}/vcard', [PublicCardController::class, 'vcard'])->name('pub
 Route::post('/c/{card}/leads', [PublicCardController::class, 'storeLead'])
     ->middleware('throttle:5,1')
     ->name('public-card.leads.store');
+// Two MetMemo users swap cards: both become each other's contacts. The GET only sends guests to log in first.
+Route::middleware('auth')->group(function () {
+    Route::get('/c/{card}/swap', [PublicCardController::class, 'startSwap'])->name('public-card.swap.start');
+    Route::post('/c/{card}/swap', [PublicCardController::class, 'swap'])->middleware('throttle:10,1')->name('public-card.swap');
+});
 
 // "Continue with Google" on the login and register pages (only when GOOGLE_CLIENT_ID is set).
 Route::middleware(['guest', 'throttle:20,1'])->group(function () {

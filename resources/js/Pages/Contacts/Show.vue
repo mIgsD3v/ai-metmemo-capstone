@@ -52,7 +52,7 @@ const followUp = computed(() => {
     return { text: `Follow up on ${formatDay(day)}`, tone: 'calm' };
 });
 
-const sourceLabels = { manual: 'Added by hand', lead_form: 'Left details on your card', scan: 'Scanned from a paper card' };
+const sourceLabels = { manual: 'Added by hand', lead_form: 'Left details on your card', scan: 'Scanned from a paper card', swap: 'Swapped cards on MetMemo' };
 
 const details = computed(() => [
     ['Email', props.contact.email],
