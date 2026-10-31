@@ -1,24 +1,23 @@
 <script setup>
-import { Head } from '@inertiajs/vue3';
-import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
+import LegalPage from '@/Components/LegalPage.vue';
 
 defineProps({
     policy: String,
 });
+
+const highlights = [
+    { title: 'Never sold', text: 'No ads, no data brokers, no sharing with other users.' },
+    { title: 'Only your own data', text: 'Every account sees only its own cards, contacts and notes.' },
+    { title: 'Masked for the AI', text: 'Phone numbers and emails are hidden before the assistant reads notes.' },
+];
 </script>
 
 <template>
-    <Head title="Privacy Policy" />
-
-    <div class="font-sans text-gray-900 antialiased">
-        <div class="pt-4 bg-gray-100">
-            <div class="min-h-screen flex flex-col items-center pt-6 sm:pt-0">
-                <div>
-                    <AuthenticationCardLogo />
-                </div>
-
-                <div class="w-full sm:max-w-2xl mt-6 p-6 bg-white shadow-md overflow-hidden sm:rounded-lg prose" v-html="policy" />
-            </div>
-        </div>
-    </div>
+    <LegalPage
+        title="Privacy Policy"
+        current="policy"
+        :html="policy"
+        summary="What MetMemo stores, why it needs it, and which services help run it. In short: we keep only what the app needs to work for you."
+        :highlights="highlights"
+    />
 </template>
