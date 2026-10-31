@@ -3,6 +3,7 @@ import { today as localToday } from '@/dates';
 import { computed, ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ContactAvatar from '@/Components/ContactAvatar.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import Pagination from '@/Components/Pagination.vue';
 
@@ -228,7 +229,7 @@ const exportIcon = 'M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21
                             :href="route('contacts.show', contact.id)"
                             class="flex min-h-16 items-center gap-3 px-4 py-2.5 transition active:bg-gray-50"
                         >
-                            <span class="flex size-[42px] shrink-0 items-center justify-center rounded-full text-sm font-semibold" :class="avatarColor(contact.full_name)">{{ initials(contact.full_name) }}</span>
+                            <ContactAvatar :name="contact.full_name" :photo="contact.photo_url" class="size-[42px] text-sm" />
                             <span class="min-w-0 flex-1">
                                 <span class="block truncate text-[15px] font-semibold text-gray-900">{{ contact.full_name }}</span>
                                 <span class="block truncate text-[13px] text-gray-500">
@@ -263,7 +264,7 @@ const exportIcon = 'M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21
                                 <tr v-for="contact in contacts.data" :key="contact.id" class="hover:bg-gray-50 transition">
                                     <td class="border-t border-gray-200 px-5 py-3">
                                         <Link :href="route('contacts.show', contact.id)" class="flex items-center gap-3 font-semibold text-gray-900 hover:text-indigo-600">
-                                            <span class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold" :class="avatarColor(contact.full_name)">{{ initials(contact.full_name) }}</span>
+                                            <ContactAvatar :name="contact.full_name" :photo="contact.photo_url" class="size-8 text-xs" />
                                             {{ contact.full_name }}
                                         </Link>
                                     </td>

@@ -3,6 +3,7 @@ import { today as localToday } from '@/dates';
 import { computed, ref } from 'vue';
 import { Deferred, Link, usePage } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ContactAvatar from '@/Components/ContactAvatar.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import FollowUpMenu from '@/Components/FollowUpMenu.vue';
 import QrCode from '@/Components/QrCode.vue';
@@ -255,7 +256,7 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                                 class="flex flex-wrap items-center gap-3.5 border-t border-gray-200 px-5 py-3.5 hover:bg-gray-50 last:rounded-b-[13px] transition"
                             >
                                 <Link :href="route('contacts.show', contact.id)" class="flex min-w-0 flex-[1_1_160px] items-center gap-3.5">
-                                    <span class="flex size-[38px] shrink-0 items-center justify-center rounded-full text-[13px] font-semibold" :class="avatarColor(contact.full_name)">{{ initials(contact.full_name) }}</span>
+                                    <ContactAvatar :name="contact.full_name" :photo="contact.photo_url" class="size-[38px] text-[13px]" />
                                     <span class="min-w-0">
                                         <span class="block truncate text-[15px] sm:text-sm font-semibold text-gray-900">{{ contact.full_name }}</span>
                                         <!-- Phones show the status here instead of a pill -->
@@ -404,7 +405,7 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                     <ul v-if="recentContacts.length" class="sm:hidden">
                         <li v-for="contact in recentContacts" :key="contact.id" class="border-t border-gray-200">
                             <Link :href="route('contacts.show', contact.id)" class="flex items-center gap-3 px-3.5 py-3 active:bg-gray-50">
-                                <span class="flex size-[38px] shrink-0 items-center justify-center rounded-full text-[13px] font-semibold" :class="avatarColor(contact.full_name)">{{ initials(contact.full_name) }}</span>
+                                <ContactAvatar :name="contact.full_name" :photo="contact.photo_url" class="size-[38px] text-[13px]" />
                                 <span class="min-w-0 flex-1">
                                     <span class="block truncate text-[15px] font-semibold text-gray-900">{{ contact.full_name }}</span>
                                     <span class="flex items-center gap-1.5 text-[13px] text-gray-500">
@@ -430,7 +431,7 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                                 <tr v-for="contact in recentContacts" :key="contact.id" class="hover:bg-gray-50 transition">
                                     <td class="border-t border-gray-200 px-5 py-3">
                                         <Link :href="route('contacts.show', contact.id)" class="flex items-center gap-3">
-                                            <span class="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold" :class="avatarColor(contact.full_name)">{{ initials(contact.full_name) }}</span>
+                                            <ContactAvatar :name="contact.full_name" :photo="contact.photo_url" class="size-8 text-xs" />
                                             <span class="min-w-0">
                                                 <span class="block truncate font-semibold text-gray-900">{{ contact.full_name }}</span>
                                                 <span class="block truncate text-xs text-gray-400">{{ contact.company || 'No company added' }}</span>

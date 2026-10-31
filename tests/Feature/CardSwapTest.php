@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Notifications\CardsSwapped;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class CardSwapTest extends TestCase
@@ -58,6 +59,41 @@ class CardSwapTest extends TestCase
         $this->assertSame(1, $maria->user->contacts()->count());
         $this->assertSame('Manager', $maria->user->contacts()->sole()->job_title);
         Notification::assertSentToTimes($maria->user, CardsSwapped::class, 1);
+    }
+
+    public function test_swapping_copies_each_cards_photo_into_the_new_contact(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('card-photos/maria.jpg', 'maria-photo');
+        Storage::disk('public')->put('card-photos/ben.jpg', 'ben-photo');
+        $maria = Card::factory()->create(['photo_path' => 'card-photos/maria.jpg']);
+        $ben = User::factory()->create();
+        $bensCard = Card::factory()->for($ben)->create(['photo_path' => 'card-photos/ben.jpg']);
+
+        $this->actingAs($ben)->post(route('public-card.swap', $maria), ['card_id' => $bensCard->id]);
+
+        $mariaForBen = $ben->contacts()->sole();
+        $benForMaria = $maria->user->contacts()->sole();
+        $this->assertSame('maria-photo', Storage::disk('public')->get($mariaForBen->photo_path));
+        $this->assertSame('ben-photo', Storage::disk('public')->get($benForMaria->photo_path));
+        $this->assertStringStartsWith('contact-photos/', $mariaForBen->photo_path);
+        $this->assertNotNull($mariaForBen->photo_url);
+
+        // A copy: Maria changing her card photo doesn't touch Ben's contact until they swap again...
+        $old = $mariaForBen->photo_path;
+        Storage::disk('public')->put('card-photos/maria-new.jpg', 'maria-new-photo');
+        $maria->update(['photo_path' => 'card-photos/maria-new.jpg']);
+        $this->assertSame('maria-photo', Storage::disk('public')->get($old));
+
+        // ...which swaps the photo for the new one and removes the old copy.
+        $this->actingAs($ben)->post(route('public-card.swap', $maria), ['card_id' => $bensCard->id]);
+        $mariaForBen->refresh();
+        $this->assertSame('maria-new-photo', Storage::disk('public')->get($mariaForBen->photo_path));
+        Storage::disk('public')->assertMissing($old);
+
+        // Deleting the contact deletes its photo.
+        $mariaForBen->delete();
+        Storage::disk('public')->assertMissing($mariaForBen->photo_path);
     }
 
     public function test_without_a_card_the_visitor_sends_their_account_name_and_email(): void

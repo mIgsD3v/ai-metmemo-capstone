@@ -3,6 +3,7 @@ import { today as localToday } from '@/dates';
 import { computed } from 'vue';
 import { Link, router, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
+import ContactAvatar from '@/Components/ContactAvatar.vue';
 import FollowUpMenu from '@/Components/FollowUpMenu.vue';
 import InputError from '@/Components/InputError.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -85,7 +86,7 @@ const noteTime = (value) => new Date(value).toLocaleString(undefined, { month: '
                 <!-- Header -->
                 <section class="bg-white border border-gray-200 rounded-2xl p-5 sm:p-6">
                     <div class="flex items-start gap-4">
-                        <span class="flex items-center justify-center size-14 sm:size-16 shrink-0 rounded-full bg-indigo-50 text-indigo-600 text-lg font-semibold">{{ initials }}</span>
+                        <ContactAvatar :name="contact.full_name" :photo="contact.photo_url" class="size-14 sm:size-16 text-lg" />
                         <div class="min-w-0 flex-1">
                             <h1 class="text-xl sm:text-2xl font-bold tracking-tight text-gray-900">{{ contact.full_name }}</h1>
                             <p v-if="role" class="text-gray-600">{{ role }}</p>

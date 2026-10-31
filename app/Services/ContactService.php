@@ -15,6 +15,8 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Throwable;
 
 class ContactService
@@ -198,9 +200,15 @@ class ContactService
             ? $mine->only(['full_name', 'email', 'phone', 'company', 'job_title'])
             : ['full_name' => $visitor->name, 'email' => $visitor->email];
 
-        [$forOwner, $isNew] = DB::transaction(function () use ($owner, $visitor, $theirs, $mine, $visitorDetails) {
-            [$forOwner, $isNew] = $this->saveSwapContact($owner, $visitor, $visitorDetails, $theirs->id);
-            $this->saveSwapContact($visitor, $owner, $theirs->only(['full_name', 'email', 'phone', 'company', 'job_title']), $mine?->id);
+        // The photo each side sees on the card: the card's own, else the account photo. Without a card, the
+        // visitor's account photo.
+        $visitorPhoto = $mine
+            ? $mine->displayPhotoFile()
+            : ($visitor->profile_photo_path ? ['disk' => config('jetstream.profile_photo_disk', 'public'), 'path' => $visitor->profile_photo_path] : null);
+
+        [$forOwner, $isNew] = DB::transaction(function () use ($owner, $visitor, $theirs, $mine, $visitorDetails, $visitorPhoto) {
+            [$forOwner, $isNew] = $this->saveSwapContact($owner, $visitor, $visitorDetails, $visitorPhoto, $theirs->id);
+            $this->saveSwapContact($visitor, $owner, $theirs->only(['full_name', 'email', 'phone', 'company', 'job_title']), $theirs->displayPhotoFile(), $mine?->id);
 
             return [$forOwner, $isNew];
         });
@@ -223,10 +231,20 @@ class ContactService
         return $this->contacts->findSwapped($owner, $other);
     }
 
-    /** @return array{0: Contact, 1: bool} The contact, and whether it was just created. */
-    private function saveSwapContact(User $owner, User $other, array $details, ?string $cardId): array
+    /**
+     * @param  array{disk: string, path: string}|null  $photo  The other person's photo, copied (not linked) so the
+     *                                                         contact keeps it if they change or delete their card.
+     * @return array{0: Contact, 1: bool} The contact, and whether it was just created.
+     */
+    private function saveSwapContact(User $owner, User $other, array $details, ?array $photo, ?string $cardId): array
     {
         $existing = $this->contacts->findSwapped($owner, $other);
+
+        // A swap again replaces the photo with the current one (or removes it if the card no longer has one).
+        if ($existing?->photo_path) {
+            Storage::disk(Contact::PHOTO_DISK)->delete($existing->photo_path);
+        }
+        $details['photo_path'] = $this->copyPhoto($photo);
 
         if ($existing) {
             return [$this->contacts->update($existing, $details), false];
@@ -240,6 +258,20 @@ class ContactService
             'met_at' => today(),
             'next_follow_up_at' => today()->addDays(self::DEFAULT_FOLLOW_UP_DAYS),
         ]), true];
+    }
+
+    /** Copies a photo into contact-photos/ and returns its new path; null when there is none or it can't be read. */
+    private function copyPhoto(?array $photo): ?string
+    {
+        if (! $photo || ! Storage::disk($photo['disk'])->exists($photo['path'])) {
+            return null;
+        }
+
+        $extension = pathinfo($photo['path'], PATHINFO_EXTENSION) ?: 'jpg';
+        $path = 'contact-photos/'.Str::uuid().'.'.$extension;
+        Storage::disk(Contact::PHOTO_DISK)->put($path, Storage::disk($photo['disk'])->get($photo['path']));
+
+        return $path;
     }
 
     /**
