@@ -162,7 +162,7 @@ const exportIcon = 'M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21
 
                 <!-- Filters: search, follow-up status, card -->
                 <section class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-2.5">
-                    <label class="flex h-11 sm:h-10 flex-[1_1_260px] items-center gap-2.5 rounded-xl sm:rounded-[10px] border border-gray-200 bg-white px-3.5 sm:px-3 text-gray-400 sm:max-w-[360px] focus-within:border-accent/60">
+                    <label class="flex h-11 sm:h-10 shrink-0 sm:shrink sm:flex-[1_1_260px] items-center gap-2.5 rounded-xl sm:rounded-[10px] border border-gray-200 bg-white px-3.5 sm:px-3 text-gray-400 sm:max-w-[360px] focus-within:border-accent/60">
                         <svg class="size-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                         </svg>

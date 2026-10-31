@@ -218,7 +218,8 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
 
                 <section class="flex flex-wrap items-start gap-6">
                     <!-- Follow-ups -->
-                    <div class="panel overflow-hidden min-w-0 flex-[2_1_560px]">
+                    <!-- No overflow clipping: each row's follow-up menu opens over the rows below it. -->
+                    <div class="panel min-w-0 flex-[2_1_560px]">
                         <div class="flex flex-wrap items-center justify-between gap-3 px-5 py-[18px]">
                             <div>
                                 <h2 class="text-base font-semibold text-gray-900">Follow-ups</h2>
@@ -250,7 +251,7 @@ const avatarColor = (name) => avatarColors[[...name].reduce((sum, ch) => sum + c
                             <div
                                 v-for="contact in shownDue"
                                 :key="contact.id"
-                                class="flex flex-wrap items-center gap-3.5 border-t border-gray-200 px-5 py-3.5 hover:bg-gray-50 transition"
+                                class="flex flex-wrap items-center gap-3.5 border-t border-gray-200 px-5 py-3.5 hover:bg-gray-50 last:rounded-b-[13px] transition"
                             >
                                 <Link :href="route('contacts.show', contact.id)" class="flex min-w-0 flex-[1_1_160px] items-center gap-3.5">
                                     <span class="flex size-[38px] shrink-0 items-center justify-center rounded-full text-[13px] font-semibold" :class="avatarColor(contact.full_name)">{{ initials(contact.full_name) }}</span>

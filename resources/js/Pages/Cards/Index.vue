@@ -94,11 +94,11 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
                     <article
                         v-for="card in cards"
                         :key="card.id"
-                        class="flex flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white transition hover:border-gray-300"
+                        class="flex flex-col rounded-2xl border border-gray-200 bg-white transition hover:border-gray-300"
                     >
-                        <!-- The card itself: who it is, and its QR code -->
+                        <!-- The card itself: who it is, and its QR code. (No overflow clipping on the card, so the "more" menu can open past its edge.) -->
                         <div
-                            class="flex flex-wrap items-center gap-[18px] border-b p-[22px]"
+                            class="flex flex-wrap items-center gap-[18px] rounded-t-[15px] border-b p-[22px]"
                             :class="card.is_public ? 'border-accent/25 bg-indigo-50' : 'border-gray-200 bg-gray-50'"
                         >
                             <img

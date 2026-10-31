@@ -129,6 +129,14 @@
         mask-image: radial-gradient(ellipse at center, black 40%, transparent 80%);
     }
 
+    /* The same grid at full strength, no fade: the public card's green band. */
+    .bg-grid-lines {
+        background-image:
+            linear-gradient(rgb(var(--grid-line) / 0.07) 1px, transparent 1px),
+            linear-gradient(90deg, rgb(var(--grid-line) / 0.07) 1px, transparent 1px);
+        background-size: 28px 28px;
+    }
+
     .btn-accent {
         @apply inline-flex items-center justify-center px-5 py-2.5 rounded-[10px] bg-accent text-accent-fg font-semibold text-sm hover:brightness-110 active:translate-y-px transition;
     }
@@ -141,6 +149,11 @@
     /* Bordered card: the one container style every refreshed screen uses. */
     .panel {
         @apply rounded-[14px] border border-gray-200 bg-white;
+    }
+
+    /* Form input of the refreshed forms: recessed field, green focus glow. */
+    .field {
+        @apply block w-full h-11 rounded-[10px] border border-gray-300 bg-gray-100 px-[13px] text-sm text-gray-900 placeholder:text-gray-400 hover:border-gray-400/60 focus:border-accent focus:ring-[3px] focus:ring-accent/15 transition;
     }
 
     /* Small uppercase section label (sidebar groups, chat history days). */

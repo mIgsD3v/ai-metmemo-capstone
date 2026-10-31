@@ -1,8 +1,8 @@
 <script setup>
 import { computed } from 'vue';
 
-// A live, scaled-down copy of the public card page (Public/Card.vue), shown beside the card form
-// so you see what people get when they scan your QR code while you type.
+// A live, scaled-down copy of the public card page (Public/Card.vue) in a phone frame, shown beside the
+// card form so you see what people get when they scan your QR code while you type.
 const props = defineProps({
     card: { type: Object, required: true },
     photoUrl: String,
@@ -16,6 +16,7 @@ const icons = {
     save: 'M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3',
 };
 
+const named = computed(() => Boolean(props.card.full_name?.trim()));
 const name = computed(() => props.card.full_name?.trim() || 'Your name');
 const initials = computed(() => name.value.split(/\s+/).filter(Boolean).slice(0, 2).map((word) => word[0].toUpperCase()).join(''));
 const role = computed(() => [props.card.job_title, props.card.company].filter(Boolean).join(' · '));
@@ -28,50 +29,47 @@ const website = computed(() => {
     }
 });
 
+// Empty fields show as placeholders, so the preview looks like a card from the first keystroke.
 const details = computed(() => [
-    props.card.email && { icon: icons.email, label: 'Email', value: props.card.email },
-    props.card.phone && { icon: icons.phone, label: 'Phone', value: props.card.phone },
-    props.card.website && { icon: icons.web, label: 'Website', value: website.value },
+    { icon: icons.email, label: 'Email', value: props.card.email },
+    { icon: icons.phone, label: 'Phone', value: props.card.phone },
+    { icon: icons.web, label: 'Website', value: props.card.website && website.value },
     props.card.location && { icon: icons.pin, label: 'Location', value: props.card.location },
 ].filter(Boolean));
 </script>
 
 <template>
-    <section class="bg-white border border-gray-200 rounded-3xl shadow-sm overflow-hidden" aria-label="Preview of your public card">
-        <div class="h-20 bg-gray-900 dark:bg-gray-100 relative">
-            <div class="absolute inset-0 bg-grid opacity-70" aria-hidden="true" />
-        </div>
+    <section class="mx-auto w-full max-w-[340px] rounded-[32px] border border-gray-300 bg-gray-100 p-2.5" aria-label="Preview of your public card">
+        <div class="overflow-hidden rounded-3xl bg-white">
+            <div class="h-24 border-b border-accent/25 bg-indigo-50" />
 
-        <div class="px-6 pb-6 -mt-12 text-center">
-            <img v-if="photoUrl" :src="photoUrl" alt="" class="relative mx-auto size-24 rounded-full object-cover ring-4 ring-white">
-            <div v-else class="relative mx-auto size-24 rounded-full bg-indigo-50 text-indigo-600 ring-4 ring-white flex items-center justify-center text-2xl font-semibold select-none" aria-hidden="true">
-                {{ initials }}
-            </div>
+            <div class="-mt-11 flex flex-col items-center gap-1.5 px-[22px] pb-6 text-center">
+                <img v-if="photoUrl" :src="photoUrl" alt="" class="size-[88px] rounded-full border-4 border-white object-cover">
+                <div v-else class="flex size-[88px] items-center justify-center rounded-full border-4 border-white bg-accent/15 text-[26px] font-bold text-indigo-600 select-none" aria-hidden="true">
+                    {{ initials }}
+                </div>
 
-            <p class="mt-3 text-xl font-bold tracking-tight" :class="card.full_name?.trim() ? 'text-gray-900' : 'text-gray-400'">{{ name }}</p>
-            <p v-if="role" class="mt-0.5 text-sm text-gray-600">{{ role }}</p>
-            <p v-if="card.bio" class="mt-3 text-sm leading-relaxed text-gray-600 whitespace-pre-line line-clamp-4">{{ card.bio }}</p>
+                <p class="mt-1.5 text-[19px] font-bold" :class="named ? 'text-gray-900' : 'text-gray-400'">{{ name }}</p>
+                <p class="text-[13px]" :class="role ? 'text-gray-500' : 'text-gray-400'">{{ role || 'Job title · Company' }}</p>
+                <p v-if="card.bio" class="mt-1 text-[13px] leading-relaxed text-gray-500 whitespace-pre-line line-clamp-4">{{ card.bio }}</p>
 
-            <div class="btn-accent w-full mt-5 gap-2 py-2.5 pointer-events-none" aria-hidden="true">
-                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" :d="icons.save" />
-                </svg>
-                Save to contacts
-            </div>
-        </div>
+                <ul class="mt-4 flex w-full flex-col gap-2">
+                    <li v-for="item in details" :key="item.label" class="flex h-[42px] items-center gap-2.5 rounded-[10px] bg-gray-50 px-3 text-[13px]">
+                        <svg class="size-[15px] shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
+                        </svg>
+                        <span class="truncate" :class="item.value ? 'text-gray-800' : 'text-gray-400'">{{ item.value || item.label }}</span>
+                    </li>
+                </ul>
 
-        <ul v-if="details.length" class="border-t border-gray-200 divide-y divide-gray-200">
-            <li v-for="item in details" :key="item.label" class="flex items-center gap-3 px-6 py-3">
-                <span class="flex items-center justify-center size-9 shrink-0 rounded-full bg-indigo-50 text-indigo-600">
-                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
+                <div class="mt-2.5 flex h-[46px] w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-accent-fg" aria-hidden="true">
+                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" :d="icons.save" />
                     </svg>
-                </span>
-                <span class="min-w-0 text-start">
-                    <span class="block text-xs text-gray-500">{{ item.label }}</span>
-                    <span class="block text-sm font-medium text-gray-900 truncate">{{ item.value }}</span>
-                </span>
-            </li>
-        </ul>
+                    Save to contacts
+                </div>
+                <p class="mt-1.5 text-xs text-gray-400">Or leave your details for {{ named ? name : 'Your name' }}</p>
+            </div>
+        </div>
     </section>
 </template>
