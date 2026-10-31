@@ -2,7 +2,7 @@
 
 A digital business card with an AI assistant that remembers everyone you meet and tells you when to follow up.
 
-**Live:** https://178.128.19.191.nip.io · demo login **test@example.com / password** (a real-estate broker with
+**Live:** https://metmemo.app · demo login **test@example.com / password** (a real-estate broker with
 25 contacts and 42 meeting notes; all data is made up)
 
 ## The problem

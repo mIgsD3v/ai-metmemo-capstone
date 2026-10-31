@@ -6,6 +6,7 @@ use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ContactExportController;
 use App\Http\Controllers\ContactNoteController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GoogleAuthController;
 use App\Http\Controllers\InsightsController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PublicCardController;
@@ -35,6 +36,12 @@ Route::get('/c/{card}/vcard', [PublicCardController::class, 'vcard'])->name('pub
 Route::post('/c/{card}/leads', [PublicCardController::class, 'storeLead'])
     ->middleware('throttle:5,1')
     ->name('public-card.leads.store');
+
+// "Continue with Google" on the login and register pages (only when GOOGLE_CLIENT_ID is set).
+Route::middleware(['guest', 'throttle:20,1'])->group(function () {
+    Route::get('/auth/google', [GoogleAuthController::class, 'redirect'])->name('auth.google');
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback'])->name('auth.google.callback');
+});
 
 Route::middleware([
     'auth:sanctum',

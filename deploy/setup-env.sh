@@ -4,7 +4,7 @@
 # Then add the OpenAI and Langfuse keys by hand with nano. Never commit these files.
 set -euo pipefail
 
-domain="${1:?usage: deploy/setup-env.sh <domain>, e.g. 178.128.19.191.nip.io}"
+domain="${1:?usage: deploy/setup-env.sh <domain>, e.g. metmemo.app}"
 
 if [ -e .env.production ] || [ -e ai-service/.env.production ]; then
     echo "An .env.production already exists; not overwriting it." >&2
@@ -46,6 +46,10 @@ QUEUE_CONNECTION=sync
 BROADCAST_CONNECTION=log
 FILESYSTEM_DISK=local
 MAIL_MAILER=log
+
+# "Continue with Google": fill in from the Google OAuth client (redirect URI https://${domain}/auth/google/callback).
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
 
 AI_SERVICE_URL=http://ai:8002
 AI_SERVICE_TOKEN=${internal_token}

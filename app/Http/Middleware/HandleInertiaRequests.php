@@ -41,6 +41,8 @@ class HandleInertiaRequests extends Middleware
             'notifications' => fn () => $request->user() ? [
                 'unread' => $request->user()->unreadNotifications()->count(),
             ] : null,
+            // Show "Continue with Google" only when a Google OAuth client is configured.
+            'googleLogin' => (bool) config('services.google.client_id'),
             // The sidebar's counts: who is due (same rule as the dashboard), contacts and cards.
             'counts' => fn () => $request->user() ? [
                 'due' => $request->user()->contacts()->whereNotNull('next_follow_up_at')->whereDate('next_follow_up_at', '<=', now())->count(),

@@ -35,6 +35,14 @@ return [
         ],
     ],
 
+    // "Continue with Google" (Socialite). A relative redirect becomes this app's own URL, so the same setting
+    // works locally and in production; register both callback URLs in the Google OAuth client.
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI', '/auth/google/callback'),
+    ],
+
     // FastAPI service in ai-service/ (card scanner, follow-up assistant).
     'ai' => [
         'url' => env('AI_SERVICE_URL', 'http://127.0.0.1:8001'),

@@ -221,4 +221,4 @@ erDiagram
 | Caching | Built | [caching.md](evidence/caching.md) |
 | Tracing | Built | Langfuse, every request and eval case |
 | Evaluation and improvement iteration | Built | [evaluation.md](evidence/evaluation.md), [failure-log.md](evidence/failure-log.md) |
-| Deployment | Live | https://178.128.19.191.nip.io, [deploy/README.md](../deploy/README.md) |
+| Deployment | Live | https://metmemo.app, [deploy/README.md](../deploy/README.md) |

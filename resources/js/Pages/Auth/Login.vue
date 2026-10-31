@@ -3,6 +3,7 @@ import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticationCard from '@/Components/AuthenticationCard.vue';
 import AuthenticationCardLogo from '@/Components/AuthenticationCardLogo.vue';
 import Checkbox from '@/Components/Checkbox.vue';
+import GoogleButton from '@/Components/GoogleButton.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
@@ -40,6 +41,9 @@ const submit = () => {
         <div v-if="status" class="mb-4 font-medium text-sm text-green-600">
             {{ status }}
         </div>
+
+        <!-- A Google sign-in that was cancelled or refused comes back here with its reason. -->
+        <InputError :message="$page.props.errors.google" class="mb-4" />
 
         <form @submit.prevent="submit">
             <div>
@@ -86,5 +90,7 @@ const submit = () => {
                 </PrimaryButton>
             </div>
         </form>
+
+        <GoogleButton />
     </AuthenticationCard>
 </template>

@@ -58,7 +58,8 @@ return [
     */
 
     'features' => [
-        // Features::termsAndPrivacyPolicy(),
+        // Terms and Privacy Policy pages (resources/markdown), linked from sign-up and Google's consent screen.
+        Features::termsAndPrivacyPolicy(),
         Features::profilePhotos(),
         // Features::api(),
         // Features::teams(['invitations' => true]),

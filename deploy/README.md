@@ -1,8 +1,11 @@
 # Deployment
 
 MetMemo runs on one DigitalOcean droplet (Ubuntu 24.04, 2 GB RAM, Singapore) with Docker Compose
-([compose.prod.yml](../compose.prod.yml)). Live at **https://178.128.19.191.nip.io** (nip.io maps the name to the
-droplet's IP, so Caddy can get a real HTTPS certificate without buying a domain).
+([compose.prod.yml](../compose.prod.yml)). Live at **https://metmemo.app**. DNS (Namecheap) has two A records,
+`@` and `www`, pointing at the droplet's IP. Caddy, inside FrankenPHP, gets and renews the Let's Encrypt
+certificates for every name in `SERVER_NAME` by itself; no certificate is bought or copied in. The first address,
+`https://178.128.19.191.nip.io` (nip.io maps the name to the IP), is still served so links shared before the
+domain keep working.
 
 ```
 Internet ──443──> app (FrankenPHP: Caddy + Laravel) ──> postgres
@@ -25,7 +28,7 @@ curl -fsSL https://get.docker.com | sh
 
 # 2. Code and secrets
 git clone https://github.com/mIgsD3v/ai-metmemo-capstone.git /opt/metmemo && cd /opt/metmemo
-deploy/setup-env.sh 178.128.19.191.nip.io   # generates app key, DB password, internal token
+deploy/setup-env.sh metmemo.app             # generates app key, DB password, internal token
 nano ai-service/.env.production             # add OPENAI_API_KEY and the LANGFUSE keys
 
 # 3. Build and start (first build: about 10 minutes)
