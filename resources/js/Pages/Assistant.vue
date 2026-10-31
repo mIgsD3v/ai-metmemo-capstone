@@ -34,6 +34,21 @@ const draft = ref('');
 const sending = ref(false);
 const thread = ref(null);
 const input = ref(null);
+
+// Phones get a placeholder that fits on one line.
+const placeholder = window.matchMedia('(max-width: 1023px)').matches
+    ? 'Ask about a contact…'
+    : 'Ask about a contact, or who to follow up with…';
+
+// The box grows with its text up to its max height, then scrolls. Done in JS because Safari (iPhone) doesn't
+// support CSS field-sizing yet.
+const fitInput = () => {
+    const el = input.value;
+    if (! el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+};
+watch(draft, () => nextTick(fitInput));
 const showChats = ref(false); // phones: the chat list is behind a button
 
 // Opening another chat (or "New chat") swaps the messages.
@@ -130,6 +145,12 @@ const showSource = async (index, noteRef) => {
     document.getElementById(`source-${index}-${noteRef}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 };
 
+// The answer as plain text: no **bold** markers or [N1] citations, which only mean something on this page.
+const copyAnswer = (message) => copyText(
+    message.content.replace(/\s?\[N\d+\]/g, '').replace(/\*\*([^*]+)\*\*/g, '$1').trim(),
+    'Answer copied',
+);
+
 const copyDraft = (item) => copyText(item.subject ? `Subject: ${item.subject}\n\n${item.body}` : item.body, 'Draft copied');
 
 const noteDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
@@ -174,14 +195,24 @@ onMounted(() => {
 <template>
     <AppLayout title="Assistant">
         <div class="lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:min-h-[calc(100vh-4rem)]">
-            <!-- Saved chats: a column on desktop, behind the "Chats" button on phones -->
+            <!-- Phones: the chat list slides in from the left (like ChatGPT's), over a dimmed page -->
+            <div v-if="showChats" class="fixed inset-0 z-40 bg-black/50 lg:hidden" aria-hidden="true" @click="showChats = false" />
+
+            <!-- Saved chats: a column on desktop, a drawer on phones -->
             <section
                 aria-label="Saved chats"
-                class="border-b lg:border-b-0 lg:border-e border-gray-200 bg-gray-100 px-3 py-5 lg:block"
-                :class="showChats ? 'block' : 'hidden'"
+                class="fixed inset-y-0 start-0 z-50 w-[85%] max-w-xs overflow-y-auto border-e border-gray-200 bg-gray-100 px-3 py-5 shadow-2xl transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:shadow-none"
+                :class="showChats ? 'translate-x-0' : '-translate-x-full'"
+                @keydown.escape="showChats = false"
             >
                 <div class="lg:sticky lg:top-[5.25rem] flex flex-col gap-4">
-                    <Link :href="route('assistant.show')" class="btn-quiet h-10 w-full text-sm">
+                    <div class="flex items-center justify-between px-1 lg:hidden">
+                        <p class="text-base font-semibold text-gray-900">Chats</p>
+                        <button type="button" class="flex size-10 items-center justify-center rounded-xl text-gray-500 hover:bg-gray-50" aria-label="Close chats" @click="showChats = false">
+                            <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                        </button>
+                    </div>
+                    <Link :href="route('assistant.show')" class="btn-quiet h-10 w-full text-sm" @click="showChats = false">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
@@ -220,14 +251,23 @@ onMounted(() => {
                 </div>
             </section>
 
-            <div class="flex min-w-0 flex-col px-4 py-6 sm:px-8 sm:py-8 min-h-[calc(100vh-11rem)] lg:min-h-0">
-                <!-- Phones: the chat list is behind a button -->
-                <div class="mb-4 flex items-center justify-between lg:hidden">
-                    <button type="button" class="btn-quiet h-9" :aria-expanded="showChats" @click="showChats = ! showChats">
-                        Chats ({{ conversations.length }})
-                    </button>
-                    <Link v-if="conversation" :href="route('assistant.show')" class="text-sm font-medium text-indigo-600">New chat</Link>
-                </div>
+            <!-- Phones and tablets: a chat screen exactly between the top bar and the tab bar (60px + the layout's
+                 96px bottom padding). Only the messages scroll; the composer stays put below them. Desktop: one page. -->
+            <div class="relative flex min-w-0 flex-col h-[calc(100dvh-9.75rem)] lg:h-auto">
+            <!-- Phones: ☰ chats, the chat's title, ✎ new chat -->
+            <div class="flex h-12 shrink-0 items-center gap-1 border-b border-gray-200 px-1.5 lg:hidden">
+                <button type="button" class="flex size-10 items-center justify-center rounded-xl text-gray-700 hover:bg-gray-50" aria-label="Open chats" :aria-expanded="showChats" @click="showChats = true">
+                    <svg class="size-[22px]" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 7.5h16.5M3.75 12h10.5M3.75 16.5h16.5" /></svg>
+                </button>
+                <p class="min-w-0 flex-1 truncate text-center text-[15px] font-semibold text-gray-900">{{ conversation?.title ?? 'Assistant' }}</p>
+                <Link :href="route('assistant.show')" class="flex size-10 items-center justify-center rounded-xl text-gray-700 hover:bg-gray-50" aria-label="New chat">
+                    <svg class="size-[21px]" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0 1 15.75 21H5.25A2.25 2.25 0 0 1 3 18.75V8.25A2.25 2.25 0 0 1 5.25 6H10" /></svg>
+                </Link>
+            </div>
+
+            <!-- Messages: on phones they scroll behind the floating composer, so the bottom padding keeps the last
+                 one clear of it -->
+            <div class="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-4 pb-32 pt-4 sm:px-8 lg:overflow-visible lg:py-8">
 
                 <!-- Empty state -->
                 <section v-if="! messages.length" class="flex flex-1 flex-col items-center justify-center gap-7 py-6">
@@ -237,7 +277,7 @@ onMounted(() => {
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
                             </svg>
                         </span>
-                        <h1 class="text-[26px] font-bold tracking-[-0.02em] text-gray-900">What do you need to remember?</h1>
+                        <h1 class="text-[22px] sm:text-[26px] font-bold tracking-[-0.02em] text-gray-900">What do you need to remember?</h1>
                         <p class="text-[15px] leading-relaxed text-gray-500">Ask about anyone you've met. Answers come from your contacts and meeting notes, and show which notes were used.</p>
                     </div>
                     <div class="grid w-full max-w-[720px] gap-2.5 sm:grid-cols-2">
@@ -272,7 +312,8 @@ onMounted(() => {
 
                     <!-- Assistant -->
                     <div v-else class="space-y-3">
-                        <div class="bg-white border border-gray-200 rounded-2xl rounded-bl-md px-4 py-3 sm:px-5 sm:py-4 text-sm text-gray-800 space-y-1.5">
+                        <!-- Phones: plain text, like ChatGPT (more words per line). Desktop: a card. -->
+                        <div class="space-y-1.5 text-[15px] leading-relaxed text-gray-800 lg:rounded-2xl lg:rounded-bl-md lg:border lg:border-gray-200 lg:bg-white lg:px-5 lg:py-4 lg:text-sm lg:leading-normal">
                             <template v-for="(block, b) in blocks(message.content)" :key="b">
                                 <div v-if="block.blank" class="h-1" />
                                 <p v-else :class="block.item ? 'flex gap-2 ps-1' : ''">
@@ -293,7 +334,18 @@ onMounted(() => {
                                     </span>
                                 </p>
                             </template>
-                            <p v-if="message.tools?.length" class="pt-2 text-xs text-gray-400">Checked: {{ checked(message.tools) }}</p>
+                            <div class="flex items-center gap-2 pt-1.5">
+                                <button
+                                    type="button"
+                                    class="-ms-1.5 flex size-8 items-center justify-center rounded-lg text-gray-400 transition hover:bg-gray-50 hover:text-gray-800"
+                                    aria-label="Copy answer"
+                                    title="Copy answer"
+                                    @click="copyAnswer(message)"
+                                >
+                                    <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
+                                </button>
+                                <p v-if="message.tools?.length" class="text-xs text-gray-400">Checked: {{ checked(message.tools) }}</p>
+                            </div>
                             <p v-if="safetyNotice(message.guardrails)" class="mt-2 flex items-start gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950/40 dark:text-amber-200">
                                 <svg class="mt-px size-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z" />
@@ -374,11 +426,13 @@ onMounted(() => {
                     Checking your contacts and notes…
                 </li>
             </ol>
+            </div>
 
-                <!-- Composer: stays above the phone tab bar -->
-                <div class="sticky bottom-20 lg:bottom-4 mx-auto mt-6 w-full max-w-[760px] space-y-2.5">
+                <!-- Composer. Phones: a floating pill over the bottom of the messages, which fade out behind it
+                     (it grows as you type). Desktop: a card that sticks to the bottom of the window. -->
+                <div class="absolute inset-x-0 bottom-0 space-y-1.5 bg-gradient-to-t from-page from-60% to-transparent px-3 pb-2 pt-8 lg:sticky lg:bottom-4 lg:mx-auto lg:mt-2 lg:w-full lg:max-w-[760px] lg:space-y-2.5 lg:bg-none lg:px-0 lg:pb-0 lg:pt-0">
                     <form
-                        class="flex flex-col gap-2.5 rounded-2xl border border-gray-300 bg-white py-3 pe-3 ps-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] focus-within:border-accent/60"
+                        class="flex items-end gap-2 rounded-[26px] border border-gray-300 bg-white py-1.5 pe-1.5 ps-4 shadow-lg shadow-black/10 focus-within:border-accent/60 lg:flex-col lg:items-stretch lg:gap-2.5 lg:rounded-2xl lg:py-3 lg:pe-3 lg:ps-4 lg:shadow-[0_8px_30px_rgba(0,0,0,0.12)] lg:dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)]"
                         @submit.prevent="ask()"
                     >
                         <label for="assistant-message" class="sr-only">Ask the assistant</label>
@@ -386,14 +440,14 @@ onMounted(() => {
                             id="assistant-message"
                             ref="input"
                             v-model="draft"
-                            rows="2"
+                            rows="1"
                             maxlength="2000"
-                            placeholder="Ask about a contact, or who to follow up with…"
-                            class="block max-h-40 min-h-[3rem] w-full resize-none border-0 bg-transparent p-0 text-[15px] leading-normal text-gray-900 placeholder:text-gray-400 focus:ring-0 [field-sizing:content]"
+                            :placeholder="placeholder"
+                            class="block min-h-10 max-h-32 min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-2 text-base leading-normal text-gray-900 placeholder:text-gray-400 focus:ring-0 [field-sizing:content] lg:max-h-40 lg:min-h-[3rem] lg:w-full lg:py-0 lg:text-[15px]"
                             @keydown="onKeydown"
                         />
-                        <div class="flex items-center justify-between gap-2.5">
-                            <span class="inline-flex h-7 items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 text-xs text-gray-500">
+                        <div class="flex shrink-0 items-center gap-2.5 lg:justify-between">
+                            <span class="hidden h-7 items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 text-xs text-gray-500 lg:inline-flex">
                                 <svg class="size-[13px]" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
                                 </svg>
@@ -401,7 +455,7 @@ onMounted(() => {
                             </span>
                             <button
                                 type="submit"
-                                class="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] bg-accent text-accent-fg transition hover:brightness-110 disabled:opacity-40"
+                                class="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-fg transition hover:brightness-110 disabled:opacity-40 lg:size-[38px] lg:rounded-[10px]"
                                 :disabled="sending || ! draft.trim()"
                                 aria-label="Send"
                             >
@@ -411,7 +465,10 @@ onMounted(() => {
                             </button>
                         </div>
                     </form>
-                    <p class="text-center text-xs text-gray-400">Drafts only: the assistant never sends messages or edits contacts. Check drafts before you send them.</p>
+                    <p class="text-center text-[11px] text-gray-400 lg:text-xs">
+                        <span class="lg:hidden">Drafts only: you review and send them yourself.</span>
+                        <span class="hidden lg:inline">Drafts only: the assistant never sends messages or edits contacts. Check drafts before you send them.</span>
+                    </p>
                 </div>
             </div>
         </div>
