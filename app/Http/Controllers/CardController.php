@@ -25,7 +25,7 @@ class CardController extends Controller
     {
         return Inertia::render('Cards/Index', [
             'cards' => $this->cards->listForUser($request->user())->map(fn (Card $card) => [
-                ...$card->only(['id', 'full_name', 'job_title', 'company', 'is_public', 'contacts_count']),
+                ...$card->only(['id', 'full_name', 'job_title', 'company', 'is_public', 'contacts_count', 'leads_count']),
                 'photo_url' => $card->displayPhotoUrl(),
                 'public_url' => route('public-card.show', $card),
             ]),

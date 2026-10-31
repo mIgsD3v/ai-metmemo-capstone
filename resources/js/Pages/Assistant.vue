@@ -1,16 +1,17 @@
 <script setup>
-import { nextTick, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { Link, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import { copyText } from '@/clipboard';
 import { ask as confirm } from '@/confirm';
 import { timeAgo } from '@/dates';
 
+// Each suggestion shows the kind of question it is: due list, topic search, a promise, a draft.
 const suggestions = [
-    'Who should I follow up with today?',
-    'Who wanted a pet-friendly place?',
-    'What did I promise Elena?',
-    'Draft a follow-up email to Andrea about the shortlist I promised',
+    { text: 'Who should I follow up with today?', tone: 'text-amber-600 dark:text-amber-300', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
+    { text: 'Who wanted a pet-friendly place?', tone: 'text-blue-600 dark:text-blue-300', icon: 'm21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z' },
+    { text: 'What did I promise Elena?', tone: 'text-violet-600 dark:text-violet-300', icon: 'M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z' },
+    { text: 'Draft a follow-up email to Andrea about the shortlist I promised', tone: 'text-indigo-600', icon: 'M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75' },
 ];
 
 // What each tool means, for the "Checked:" line under an answer.
@@ -142,103 +143,121 @@ const safetyNotice = (events = []) => {
 };
 
 const checked = (tools) => [...new Set((tools ?? []).map((name) => toolLabels[name] ?? name))].join(', ');
+
+// Saved chats grouped by day, newest first (the server already sorts them).
+const chatGroups = computed(() => {
+    const dayKey = (date) => date.toDateString();
+    const todayKey = dayKey(new Date());
+    const yesterdayKey = dayKey(new Date(Date.now() - 86_400_000));
+    const groups = [];
+
+    for (const chat of props.conversations) {
+        const key = dayKey(new Date(chat.updated_at));
+        const label = key === todayKey ? 'Today' : key === yesterdayKey ? 'Yesterday' : 'Earlier';
+        if (groups.at(-1)?.label !== label) groups.push({ label, chats: [] });
+        groups.at(-1).chats.push(chat);
+    }
+
+    return groups;
+});
+
+// Opened from elsewhere with a question (the dashboard's "Draft email"): ask it once, then drop it from the URL.
+onMounted(() => {
+    const question = new URLSearchParams(window.location.search).get('ask');
+    if (question && ! props.conversation) {
+        window.history.replaceState(window.history.state, '', route('assistant.show'));
+        ask(question);
+    }
+});
 </script>
 
 <template>
     <AppLayout title="Assistant">
-        <template #header>
-            <div class="flex items-center justify-between gap-4">
-                <div>
-                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">Assistant</h2>
-                    <p class="text-sm text-gray-500 mt-1">Ask about your contacts and notes. It drafts follow-ups; you send them.</p>
-                </div>
-                <div class="flex shrink-0 items-center gap-3">
-                    <button
-                        v-if="conversations.length"
-                        type="button"
-                        class="lg:hidden text-sm text-gray-600 hover:text-gray-900"
-                        :aria-expanded="showChats"
-                        @click="showChats = ! showChats"
-                    >
-                        Chats ({{ conversations.length }})
-                    </button>
-                    <Link v-if="conversation" :href="route('assistant.show')" class="text-sm text-indigo-600 hover:underline">New chat</Link>
-                </div>
-            </div>
-        </template>
-
-        <div class="page py-6 sm:py-8 lg:grid lg:grid-cols-[15rem_minmax(0,1fr)] lg:gap-8">
+        <div class="lg:grid lg:grid-cols-[16rem_minmax(0,1fr)] lg:min-h-[calc(100vh-4rem)]">
             <!-- Saved chats: a column on desktop, behind the "Chats" button on phones -->
-            <aside v-if="conversations.length" class="mb-6 lg:mb-0 lg:block" :class="showChats ? 'block' : 'hidden'">
-                <nav class="lg:sticky lg:top-24 rounded-2xl border border-gray-200 bg-white p-2" aria-label="Saved chats">
-                    <Link
-                        :href="route('assistant.show')"
-                        class="mb-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
-                    >
+            <section
+                aria-label="Saved chats"
+                class="border-b lg:border-b-0 lg:border-e border-gray-200 bg-gray-100 px-3 py-5 lg:block"
+                :class="showChats ? 'block' : 'hidden'"
+            >
+                <div class="lg:sticky lg:top-[5.25rem] flex flex-col gap-4">
+                    <Link :href="route('assistant.show')" class="btn-quiet h-10 w-full text-sm">
                         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
                         New chat
                     </Link>
-                    <ul class="max-h-[60vh] space-y-0.5 overflow-y-auto">
-                        <li v-for="chat in conversations" :key="chat.id" class="group relative">
-                            <Link
-                                :href="route('assistant.conversation', chat.id)"
-                                class="block rounded-lg py-2 ps-3 pe-9 text-sm transition"
-                                :class="chat.id === conversation?.id ? 'bg-indigo-50 text-indigo-600' : 'text-gray-700 hover:bg-gray-50'"
-                                :aria-current="chat.id === conversation?.id ? 'page' : undefined"
-                            >
-                                <span class="block truncate">{{ chat.title }}</span>
-                                <span class="block text-[11px] text-gray-400">{{ timeAgo(chat.updated_at) }}</span>
-                            </Link>
-                            <button
-                                type="button"
-                                class="absolute end-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 hover:bg-gray-100 hover:text-red-600 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
-                                :aria-label="`Delete chat: ${chat.title}`"
-                                title="Delete chat"
-                                @click="deleteChat(chat)"
-                            >
-                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                                </svg>
-                            </button>
-                        </li>
-                    </ul>
-                </nav>
-            </aside>
-
-            <div class="mx-auto w-full max-w-3xl" :class="conversations.length ? '' : 'lg:col-span-2'">
-            <!-- Empty state -->
-            <section v-if="! messages.length" class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
-                <div class="flex items-center gap-3">
-                    <span class="flex size-10 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
-                        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
-                        </svg>
-                    </span>
-                    <div>
-                        <h3 class="font-semibold text-gray-900">What do you need to remember?</h3>
-                        <p class="text-sm text-gray-500">It reads your contacts and meeting notes, and cites the notes it used.</p>
-                    </div>
+                    <p v-if="! conversations.length" class="px-2.5 text-[13px] text-gray-400">Your chats are saved here, so you can come back to them.</p>
+                    <nav v-else class="max-h-[70vh] overflow-y-auto" aria-label="Chats">
+                        <div v-for="(group, g) in chatGroups" :key="group.label" :class="g ? 'pt-3.5' : ''">
+                            <p class="eyebrow px-2.5 pb-1.5">{{ group.label }}</p>
+                            <ul class="space-y-0.5">
+                                <li v-for="chat in group.chats" :key="chat.id" class="group relative">
+                                    <Link
+                                        :href="route('assistant.conversation', chat.id)"
+                                        class="block rounded-lg py-2 ps-2.5 pe-9 transition"
+                                        :class="chat.id === conversation?.id ? 'bg-accent/10 text-indigo-600' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'"
+                                        :aria-current="chat.id === conversation?.id ? 'page' : undefined"
+                                    >
+                                        <span class="block truncate text-[13px] font-medium">{{ chat.title }}</span>
+                                        <span class="block text-xs text-gray-400">{{ timeAgo(chat.updated_at) }}</span>
+                                    </Link>
+                                    <button
+                                        type="button"
+                                        class="absolute end-1.5 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-gray-400 hover:bg-gray-200 hover:text-red-600 lg:opacity-0 lg:group-hover:opacity-100 focus:opacity-100"
+                                        :aria-label="`Delete chat: ${chat.title}`"
+                                        title="Delete chat"
+                                        @click="deleteChat(chat)"
+                                    >
+                                        <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+                                        </svg>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </nav>
                 </div>
-                <div class="mt-6 grid gap-2 sm:grid-cols-2">
-                    <button
-                        v-for="suggestion in suggestions"
-                        :key="suggestion"
-                        type="button"
-                        class="rounded-xl border border-gray-200 px-4 py-3 text-start text-sm text-gray-700 hover:border-indigo-500 hover:bg-indigo-50/40 transition"
-                        @click="ask(suggestion)"
-                    >
-                        {{ suggestion }}
-                    </button>
-                </div>
-                <p class="mt-6 rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-500">
-                    The assistant never sends messages or changes your contacts. Drafts are for you to review, copy and send yourself.
-                </p>
             </section>
 
-            <!-- Conversation -->
-            <ol v-else ref="thread" class="space-y-6" aria-live="polite">
+            <div class="flex min-w-0 flex-col px-4 py-6 sm:px-8 sm:py-8 min-h-[calc(100vh-11rem)] lg:min-h-0">
+                <!-- Phones: the chat list is behind a button -->
+                <div class="mb-4 flex items-center justify-between lg:hidden">
+                    <button type="button" class="btn-quiet h-9" :aria-expanded="showChats" @click="showChats = ! showChats">
+                        Chats ({{ conversations.length }})
+                    </button>
+                    <Link v-if="conversation" :href="route('assistant.show')" class="text-sm font-medium text-indigo-600">New chat</Link>
+                </div>
+
+                <!-- Empty state -->
+                <section v-if="! messages.length" class="flex flex-1 flex-col items-center justify-center gap-7 py-6">
+                    <div class="flex max-w-[520px] flex-col items-center gap-3.5 text-center">
+                        <span class="flex size-[52px] items-center justify-center rounded-[14px] border border-accent/25 bg-indigo-50 text-indigo-600">
+                            <svg class="size-6" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
+                            </svg>
+                        </span>
+                        <h1 class="text-[26px] font-bold tracking-[-0.02em] text-gray-900">What do you need to remember?</h1>
+                        <p class="text-[15px] leading-relaxed text-gray-500">Ask about anyone you've met. Answers come from your contacts and meeting notes, and show which notes were used.</p>
+                    </div>
+                    <div class="grid w-full max-w-[720px] gap-2.5 sm:grid-cols-2">
+                        <button
+                            v-for="suggestion in suggestions"
+                            :key="suggestion.text"
+                            type="button"
+                            class="panel flex items-start gap-3 px-4 py-3.5 text-start text-sm font-medium leading-snug text-gray-800 transition hover:-translate-y-px hover:border-accent/40 hover:bg-gray-50"
+                            @click="ask(suggestion.text)"
+                        >
+                            <svg class="mt-px size-[18px] shrink-0" :class="suggestion.tone" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" :d="suggestion.icon" />
+                            </svg>
+                            {{ suggestion.text }}
+                        </button>
+                    </div>
+                </section>
+
+                <!-- Conversation -->
+            <ol v-else ref="thread" class="mx-auto w-full max-w-3xl space-y-6 py-2" aria-live="polite">
                 <li v-for="(message, index) in messages" :key="index" class="scroll-mt-24">
                     <!-- You -->
                     <div v-if="message.role === 'user'" class="flex justify-end">
@@ -356,33 +375,44 @@ const checked = (tools) => [...new Set((tools ?? []).map((name) => toolLabels[na
                 </li>
             </ol>
 
-            <!-- Composer: stays above the phone tab bar -->
-            <form class="sticky bottom-20 lg:bottom-4 mt-6 rounded-2xl border border-gray-200 bg-white p-2 shadow-sm focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500" @submit.prevent="ask()">
-                <div class="flex items-end gap-2">
-                    <label for="assistant-message" class="sr-only">Ask the assistant</label>
-                    <textarea
-                        id="assistant-message"
-                        ref="input"
-                        v-model="draft"
-                        rows="1"
-                        maxlength="2000"
-                        placeholder="Ask about a contact, or who to follow up with…"
-                        class="block max-h-40 min-h-[2.5rem] w-full resize-none border-0 bg-transparent px-2 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:ring-0 [field-sizing:content]"
-                        @keydown="onKeydown"
-                    />
-                    <button
-                        type="submit"
-                        class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent text-accent-fg transition hover:opacity-90 disabled:opacity-40"
-                        :disabled="sending || ! draft.trim()"
-                        aria-label="Send"
+                <!-- Composer: stays above the phone tab bar -->
+                <div class="sticky bottom-20 lg:bottom-4 mx-auto mt-6 w-full max-w-[760px] space-y-2.5">
+                    <form
+                        class="flex flex-col gap-2.5 rounded-2xl border border-gray-300 bg-white py-3 pe-3 ps-4 shadow-[0_8px_30px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.35)] focus-within:border-accent/60"
+                        @submit.prevent="ask()"
                     >
-                        <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-                        </svg>
-                    </button>
+                        <label for="assistant-message" class="sr-only">Ask the assistant</label>
+                        <textarea
+                            id="assistant-message"
+                            ref="input"
+                            v-model="draft"
+                            rows="2"
+                            maxlength="2000"
+                            placeholder="Ask about a contact, or who to follow up with…"
+                            class="block max-h-40 min-h-[3rem] w-full resize-none border-0 bg-transparent p-0 text-[15px] leading-normal text-gray-900 placeholder:text-gray-400 focus:ring-0 [field-sizing:content]"
+                            @keydown="onKeydown"
+                        />
+                        <div class="flex items-center justify-between gap-2.5">
+                            <span class="inline-flex h-7 items-center gap-1.5 rounded-full border border-gray-200 bg-gray-50 px-2.5 text-xs text-gray-500">
+                                <svg class="size-[13px]" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                                </svg>
+                                Reading {{ $page.props.counts?.contacts ?? 0 }} contacts and notes
+                            </span>
+                            <button
+                                type="submit"
+                                class="flex size-[38px] shrink-0 items-center justify-center rounded-[10px] bg-accent text-accent-fg transition hover:brightness-110 disabled:opacity-40"
+                                :disabled="sending || ! draft.trim()"
+                                aria-label="Send"
+                            >
+                                <svg class="size-[18px]" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 19.5v-15m0 0-6.75 6.75M12 4.5l6.75 6.75" />
+                                </svg>
+                            </button>
+                        </div>
+                    </form>
+                    <p class="text-center text-xs text-gray-400">Drafts only: the assistant never sends messages or edits contacts. Check drafts before you send them.</p>
                 </div>
-            </form>
-            <p class="mt-2 text-center text-[11px] text-gray-400">The assistant can make mistakes. Check drafts before you send them.</p>
             </div>
         </div>
     </AppLayout>

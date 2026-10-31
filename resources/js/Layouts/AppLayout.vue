@@ -1,5 +1,5 @@
 <script setup>
-import { Head, Link, router } from '@inertiajs/vue3';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
@@ -7,7 +7,7 @@ import SidebarLink from '@/Components/SidebarLink.vue';
 import ThemeToggle from '@/Components/ThemeToggle.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
 import { sidebarExpanded, toggleSidebar } from '@/sidebar';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 defineProps({
     title: String,
@@ -29,15 +29,28 @@ const icons = {
 
 // One list drives both the desktop sidebar and the phone tab bar.
 const nav = [
-    { label: 'Home', sidebarLabel: 'Dashboard', route: 'dashboard', match: 'dashboard', icon: icons.home },
+    { label: 'Home', sidebarLabel: 'Dashboard', route: 'dashboard', match: 'dashboard', icon: icons.home, group: 'workspace', count: 'due', tone: 'warning' },
     // Desktop only: the phone tab bar is full; phones reach it from the Dashboard.
-    { label: 'Insights', route: 'insights', match: 'insights', icon: icons.insights, desktopOnly: true },
-    { label: 'Assistant', route: 'assistant.show', match: 'assistant.*', icon: icons.assistant },
+    { label: 'Insights', route: 'insights', match: 'insights', icon: icons.insights, desktopOnly: true, group: 'workspace', order: 4 },
+    { label: 'Assistant', route: 'assistant.show', match: 'assistant.*', icon: icons.assistant, group: 'workspace', order: 3 },
     { label: 'Scan', sidebarLabel: 'Scan a card', route: 'scan.create', match: 'scan.*', icon: icons.scan, primary: true },
-    { label: 'Contacts', route: 'contacts.index', match: 'contacts.*', icon: icons.contacts },
-    { label: 'Cards', sidebarLabel: 'My Cards', route: 'cards.index', match: 'cards.*', icon: icons.cards },
+    { label: 'Contacts', route: 'contacts.index', match: 'contacts.*', icon: icons.contacts, group: 'workspace', order: 2, count: 'contacts' },
+    { label: 'Cards', sidebarLabel: 'My Cards', route: 'cards.index', match: 'cards.*', icon: icons.cards, group: 'cards', count: 'cards' },
     // Profile isn't a tab on phones: it's in the account menu at the top right.
 ];
+
+// Desktop sidebar: the scan button on top, then "Workspace" and "Your cards" groups (ordered differently from the tab bar).
+const scanItem = nav.find((item) => item.primary);
+const sidebarGroups = [
+    { key: 'workspace', label: 'Workspace' },
+    { key: 'cards', label: 'Your cards' },
+].map((group) => ({
+    ...group,
+    items: nav.filter((item) => item.group === group.key).sort((a, b) => (a.order ?? 1) - (b.order ?? 1)),
+}));
+
+const page = usePage();
+const userTitle = computed(() => `${page.props.auth.user.name} · ${page.props.auth.user.email}`);
 
 const logout = () => {
     router.post(route('logout'));
@@ -108,7 +121,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
 
             <!-- Desktop sidebar: icons only by default. The panel button at the top expands it (like Claude's). -->
             <aside
-                class="hidden lg:flex fixed inset-y-0 start-0 z-40 flex-col bg-white border-e border-gray-200 transition-[width] duration-200 ease-out"
+                class="hidden lg:flex fixed inset-y-0 start-0 z-40 flex-col bg-white dark:bg-gray-100 border-e border-gray-200 transition-[width] duration-200 ease-out"
                 :class="sidebarExpanded ? 'w-64' : 'w-16'"
             >
                 <div v-if="sidebarExpanded" class="flex items-center justify-between h-16 shrink-0 ps-5 pe-3">
@@ -142,46 +155,57 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
                 </div>
 
                 <!-- Collapsed: no overflow clipping, so the hover labels can show beside the icons. -->
-                <nav class="flex-1 py-4 space-y-1" :class="sidebarExpanded ? 'px-3 overflow-y-auto' : 'px-2.5'" aria-label="Main">
-                    <SidebarLink
-                        v-for="item in nav.filter((item) => ! item.mobileOnly)"
-                        :key="item.route"
-                        :href="route(item.route)"
-                        :active="route().current(item.match)"
-                        :label="item.sidebarLabel ?? item.label"
-                        :collapsed="! sidebarExpanded"
+                <nav class="flex-1 py-4" :class="sidebarExpanded ? 'px-3 overflow-y-auto' : 'px-2.5'" aria-label="Main">
+                    <!-- Scan a card: the main action, a full button when expanded -->
+                    <Link
+                        v-if="sidebarExpanded"
+                        :href="route(scanItem.route)"
+                        class="btn-accent w-full h-[42px] gap-2 mb-6"
+                        :aria-current="route().current(scanItem.match) ? 'page' : undefined"
                     >
-                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
-                            <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
+                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" :d="scanItem.icon" />
+                        </svg>
+                        {{ scanItem.sidebarLabel }}
+                    </Link>
+                    <SidebarLink
+                        v-else
+                        :href="route(scanItem.route)"
+                        :active="route().current(scanItem.match)"
+                        :label="scanItem.sidebarLabel"
+                        collapsed
+                        class="mb-3 !bg-accent !text-accent-fg hover:brightness-110"
+                    >
+                        <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" :d="scanItem.icon" />
                         </svg>
                     </SidebarLink>
+
+                    <div
+                        v-for="(group, g) in sidebarGroups"
+                        :key="group.key"
+                        class="space-y-0.5"
+                        :class="g === 0 ? '' : (sidebarExpanded ? 'mt-5' : 'mt-3 pt-3 border-t border-gray-200')"
+                    >
+                        <p v-if="sidebarExpanded" class="eyebrow px-3 pb-2">{{ group.label }}</p>
+                        <SidebarLink
+                            v-for="item in group.items"
+                            :key="item.route"
+                            :href="route(item.route)"
+                            :active="route().current(item.match)"
+                            :label="item.sidebarLabel ?? item.label"
+                            :collapsed="! sidebarExpanded"
+                            :badge="item.count ? $page.props.counts?.[item.count] : undefined"
+                            :badge-tone="item.tone"
+                        >
+                            <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" :d="item.icon" />
+                            </svg>
+                        </SidebarLink>
+                    </div>
                 </nav>
 
-                <div class="shrink-0 border-t border-gray-200 py-4 space-y-1" :class="sidebarExpanded ? 'px-3' : 'px-2.5'">
-                    <div v-if="sidebarExpanded" class="flex items-center gap-3 px-3 pb-2">
-                        <img
-                            v-if="$page.props.jetstream.managesProfilePhotos"
-                            class="size-9 shrink-0 rounded-full object-cover"
-                            :src="$page.props.auth.user.profile_photo_url"
-                            :alt="$page.props.auth.user.name"
-                        >
-                        <div class="min-w-0 flex-1">
-                            <div class="text-sm font-medium text-gray-800 truncate">{{ $page.props.auth.user.name }}</div>
-                            <div class="text-xs text-gray-500 truncate">{{ $page.props.auth.user.email }}</div>
-                        </div>
-                        <ThemeToggle class="shrink-0" />
-                    </div>
-                    <div v-else class="flex flex-col items-center gap-2 pb-2">
-                        <img
-                            v-if="$page.props.jetstream.managesProfilePhotos"
-                            class="size-9 rounded-full object-cover"
-                            :src="$page.props.auth.user.profile_photo_url"
-                            :alt="$page.props.auth.user.name"
-                            :title="`${$page.props.auth.user.name} · ${$page.props.auth.user.email}`"
-                        >
-                        <ThemeToggle />
-                    </div>
-
+                <div class="shrink-0 py-4 space-y-0.5" :class="sidebarExpanded ? 'px-3' : 'px-2.5 border-t border-gray-200'">
                     <SidebarLink :href="route('profile.show')" :active="route().current('profile.show')" label="Profile" :collapsed="! sidebarExpanded">
                         <svg class="size-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" :d="icons.profile" />
@@ -201,6 +225,30 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
                             </svg>
                         </SidebarLink>
                     </form>
+
+                    <div v-if="sidebarExpanded" class="!mt-3 flex items-center gap-2.5 rounded-xl border border-gray-200 bg-white p-2.5">
+                        <img
+                            v-if="$page.props.jetstream.managesProfilePhotos"
+                            class="size-[34px] shrink-0 rounded-full object-cover"
+                            :src="$page.props.auth.user.profile_photo_url"
+                            :alt="$page.props.auth.user.name"
+                        >
+                        <div class="min-w-0 flex-1">
+                            <div class="text-[13px] font-semibold text-gray-800 truncate">{{ $page.props.auth.user.name }}</div>
+                            <div class="text-xs text-gray-400 truncate">{{ $page.props.auth.user.email }}</div>
+                        </div>
+                        <ThemeToggle class="shrink-0" />
+                    </div>
+                    <div v-else class="flex flex-col items-center gap-2 pt-2">
+                        <img
+                            v-if="$page.props.jetstream.managesProfilePhotos"
+                            class="size-9 rounded-full object-cover"
+                            :src="$page.props.auth.user.profile_photo_url"
+                            :alt="$page.props.auth.user.name"
+                            :title="userTitle"
+                        >
+                        <ThemeToggle />
+                    </div>
                 </div>
             </aside>
 
@@ -218,12 +266,18 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
                                 type="search"
                                 placeholder="Search contacts"
                                 aria-label="Search contacts"
-                                class="w-full h-9 rounded-lg border-gray-200 bg-white ps-9 pe-10 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500"
+                                class="w-full h-10 rounded-[10px] border-gray-200 bg-white ps-9 pe-10 text-sm placeholder:text-gray-400 focus:border-indigo-500 focus:ring-indigo-500"
                             >
                             <kbd class="pointer-events-none absolute end-2.5 top-1/2 -translate-y-1/2 rounded border border-gray-200 px-1.5 text-[11px] font-medium text-gray-400">/</kbd>
                         </form>
-                        <div class="ms-auto flex items-center gap-1">
+                        <div class="ms-auto flex items-center gap-2">
                             <NotificationBell />
+                            <Link :href="route('contacts.create')" class="btn-quiet h-10 px-3.5 text-sm">
+                                <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                </svg>
+                                New contact
+                            </Link>
                         </div>
                     </div>
                 </div>

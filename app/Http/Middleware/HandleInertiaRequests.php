@@ -41,6 +41,12 @@ class HandleInertiaRequests extends Middleware
             'notifications' => fn () => $request->user() ? [
                 'unread' => $request->user()->unreadNotifications()->count(),
             ] : null,
+            // The sidebar's counts: who is due (same rule as the dashboard), contacts and cards.
+            'counts' => fn () => $request->user() ? [
+                'due' => $request->user()->contacts()->whereNotNull('next_follow_up_at')->whereDate('next_follow_up_at', '<=', now())->count(),
+                'contacts' => $request->user()->contacts()->count(),
+                'cards' => $request->user()->cards()->count(),
+            ] : null,
             // Public keys only: the browser needs them to listen. The secret never leaves the server.
             'pusher' => config('broadcasting.default') === 'pusher' ? [
                 'key' => config('broadcasting.connections.pusher.key'),

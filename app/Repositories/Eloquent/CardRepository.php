@@ -13,7 +13,7 @@ class CardRepository implements CardRepositoryInterface
     {
         return $user->cards()
             ->chaperone() // Each card's ->user is $user, without a query per card.
-            ->withCount('contacts')
+            ->withCount(['contacts', 'contacts as leads_count' => fn ($query) => $query->where('source', 'lead_form')])
             ->latest()
             ->get();
     }
