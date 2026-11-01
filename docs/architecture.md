@@ -1,7 +1,7 @@
 # MetMemo architecture
 
-How MetMemo works and how it is built, as deployed on 2026-10-31. This replaces the proposal-stage
-[MetMemo-Architecture.pdf](MetMemo-Architecture.pdf), which still shows integer ids and the AI features as "to build".
+How MetMemo works and how it is built, as deployed on 2026-10-31. The same architecture, with diagrams, evaluation
+results, access control and design decisions, is in [MetMemo-Architecture.pdf](MetMemo-Architecture.pdf) (v2.0, 2026-11-01).
 
 **Met** is the people you meet: your card, its QR code, the lead form, and the paper cards you scan.
 **Memo** is the memory of each meeting: your notes, follow-up dates, and the assistant that recalls them and drafts
