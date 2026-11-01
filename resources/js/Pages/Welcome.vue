@@ -39,6 +39,92 @@ onMounted(() => {
 });
 
 onUnmounted(() => tourObserver?.disconnect());
+
+// How it works: a roadmap that follows the scroll. Scrolling sets where the line should be; the line
+// then draws there at its own pace (ROAD_SPEED), so a fast scroll still shows 01, 02, 03, 04 light up
+// in turn instead of jumping to the end. Scrolling up takes it back the same way.
+const ROAD_SPEED = 1.7; // milestones per second
+const stepsSection = ref(null);
+const roadTarget = ref(0); // where the scroll says the line should be: 0 = first milestone, steps.length - 1 = last
+const roadProgress = ref(0); // where the line is drawn now, catching up with roadTarget
+let roadFrame = null;
+let roadTick = null;
+let roadLastTime = 0;
+
+const drawRoad = (time) => {
+    const elapsed = roadLastTime ? (time - roadLastTime) / 1000 : 0;
+    roadLastTime = time;
+
+    const gap = roadTarget.value - roadProgress.value;
+    const step = Math.min(Math.abs(gap), ROAD_SPEED * elapsed);
+    roadProgress.value += Math.sign(gap) * step;
+
+    if (Math.abs(roadTarget.value - roadProgress.value) > 0.001) {
+        roadTick = requestAnimationFrame(drawRoad);
+    } else {
+        roadProgress.value = roadTarget.value;
+        roadTick = null;
+        roadLastTime = 0;
+    }
+};
+
+const setRoadTarget = (value) => {
+    roadTarget.value = value;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        roadProgress.value = value;
+        return;
+    }
+    roadTick ??= requestAnimationFrame(drawRoad);
+};
+
+const clamp = (value) => Math.min(1, Math.max(0, value));
+
+const measureRoad = () => {
+    roadFrame = null;
+    const list = stepsSection.value;
+    if (! list) return;
+
+    const top = list.getBoundingClientRect().top;
+    const screen = window.innerHeight;
+
+    if (window.matchMedia('(min-width: 1024px)').matches) {
+        // Side by side: drawn over about 40% of a screen of scrolling, from when it is 75% down the screen.
+        setRoadTarget(clamp((screen * 0.75 - top) / (screen * 0.4)) * (steps.length - 1));
+        return;
+    }
+
+    // Stacked (phones): the line follows a point 60% down the screen, milestone by milestone.
+    const reading = screen * 0.6 - top;
+    const marks = [...list.children].map((item) => item.offsetTop);
+    let progress = 0;
+    marks.forEach((mark, i) => {
+        if (i > 0 && reading > marks[i - 1]) progress = i - 1 + clamp((reading - marks[i - 1]) / (mark - marks[i - 1]));
+    });
+    setRoadTarget(progress);
+};
+const onRoadScroll = () => {
+    roadFrame ??= requestAnimationFrame(measureRoad);
+};
+
+const currentStep = computed(() => Math.floor(roadProgress.value + 0.001));
+const nodeState = (i) => {
+    if (i < currentStep.value) return 'done';
+    return i === currentStep.value ? 'active' : 'todo';
+};
+const connectorFill = (i) => clamp(roadProgress.value - i);
+
+onMounted(() => {
+    measureRoad();
+    window.addEventListener('scroll', onRoadScroll, { passive: true });
+    window.addEventListener('resize', onRoadScroll);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('scroll', onRoadScroll);
+    window.removeEventListener('resize', onRoadScroll);
+    if (roadFrame) cancelAnimationFrame(roadFrame);
+    if (roadTick) cancelAnimationFrame(roadTick);
+});
 const showingUseCaseMenu = ref(false);
 const showingMobileMenu = ref(false);
 
@@ -52,18 +138,22 @@ const sections = [
 
 const steps = [
     {
+        when: 'Before you go',
         title: 'Create your card',
         body: 'Add your name, role, company, contact details and a short bio. Make as many cards as you have hats to wear.',
     },
     {
+        when: 'When you meet',
         title: 'Share it in a second',
         body: 'Every card gets its own link and QR code. The person you meet scans it with their phone camera. No app to install.',
     },
     {
+        when: 'Right after',
         title: 'Capture the contact',
-        body: 'Visitors save you to their phone with one tap and can leave their details. You can also scan their paper card or add them by hand.',
+        body: 'Visitors save you in one tap and leave their details. Swap cards with MetMemo users, or scan their paper card.',
     },
     {
+        when: 'Two days later',
         title: 'Follow up on time',
         body: 'Each new contact gets a follow-up date. Your dashboard shows who is due, and the AI assistant drafts the message.',
     },
@@ -85,50 +175,43 @@ const aiFeatures = [
 ];
 
 const coreFeatures = [
-    {
-        title: 'QR code and share link',
-        body: 'A clean public page for every card at its own short link.',
-        icon: 'M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 3.75 9.375v-4.5ZM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 0 1-1.125-1.125v-4.5ZM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0 1 13.5 9.375v-4.5Z M6.75 6.75h.75v.75h-.75v-.75ZM6.75 16.5h.75v.75h-.75v-.75ZM16.5 6.75h.75v.75h-.75v-.75ZM13.5 13.5h.75v.75h-.75v-.75ZM13.5 19.5h.75v.75h-.75v-.75ZM19.5 13.5h.75v.75h-.75v-.75ZM19.5 19.5h.75v.75h-.75v-.75ZM16.5 16.5h.75v.75h-.75v-.75Z',
-    },
-    {
-        title: 'Save to contacts',
-        body: 'Visitors download your vCard and you land in their phone book.',
-        icon: 'M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3',
-    },
-    {
-        title: 'Lead capture form',
-        body: 'Visitors leave their name, number and message. It arrives as a contact.',
-        icon: 'M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75',
-    },
-    {
-        title: 'Contacts with notes',
-        body: 'Every person you meet, where they came from, and what you talked about.',
-        icon: 'M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z',
-    },
-    {
-        title: 'Follow-up reminders',
-        body: 'New leads are due two days after you meet, so nobody goes cold.',
-        icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
-    },
-    {
-        title: 'Dashboard',
-        body: 'Your cards, contacts and who is due for follow-up, at a glance.',
-        icon: 'M3.75 6A2.25 2.25 0 0 1 6 3.75h2.25A2.25 2.25 0 0 1 10.5 6v2.25a2.25 2.25 0 0 1-2.25 2.25H6a2.25 2.25 0 0 1-2.25-2.25V6ZM3.75 15.75A2.25 2.25 0 0 1 6 13.5h2.25a2.25 2.25 0 0 1 2.25 2.25V18a2.25 2.25 0 0 1-2.25 2.25H6A2.25 2.25 0 0 1 3.75 18v-2.25ZM13.5 6a2.25 2.25 0 0 1 2.25-2.25H18A2.25 2.25 0 0 1 20.25 6v2.25A2.25 2.25 0 0 1 18 10.5h-2.25a2.25 2.25 0 0 1-2.25-2.25V6ZM13.5 15.75a2.25 2.25 0 0 1 2.25-2.25H18a2.25 2.25 0 0 1 2.25 2.25V18A2.25 2.25 0 0 1 18 20.25h-2.25a2.25 2.25 0 0 1-2.25-2.25v-2.25Z',
-    },
+    { group: 'Your card', title: 'QR code and share link', body: 'Every card gets its own page and short link. Save the QR as an image for your booth, slides or email signature.' },
+    { group: 'Your card', title: 'Card swap', body: 'Meeting another MetMemo user? One scan and one tap, and you are in each other\'s contacts, photo included.', new: true },
+    { group: 'Your card', title: 'Lead form and vCard', body: 'Visitors save you to their phone in one tap and leave their details, which arrive as a contact.' },
+    { group: 'Your contacts', title: 'Contacts with notes', body: 'Everyone you meet, where you met, the card they came from, and what you talked about.' },
+    { group: 'Your contacts', title: 'Reminders and alerts', body: 'New contacts are due two days after you meet. The bell tells you when someone leaves details or swaps cards.' },
+    { group: 'Your contacts', title: 'Export any time', body: 'Download your contacts as CSV, Excel or vCard. Your list stays yours.' },
+    { group: 'Your account', title: 'Insights', body: 'See which events and cards bring people in, and how quickly you follow up.', new: true },
+    { group: 'Your account', title: 'Sign in your way', body: 'Email and password or Continue with Google, with optional two-factor authentication.', new: true },
+    { group: 'Your account', title: 'Made for your phone', body: 'Scan, chat with the assistant and share your QR from a phone, with light and dark themes.' },
+];
+
+const scanPreview = [
+    { label: 'Name', value: 'Juan Dela Cruz' },
+    { label: 'Company', value: 'Cruz Logistics' },
+    { label: 'Email', value: 'juan@cruzlog.ph', check: true },
+];
+
+const followUpPreview = [
+    { name: 'Juan Dela Cruz', due: 'Due today · Expo SMX' },
+    { name: 'Carla Mendoza', due: 'Due Thursday · Client visit' },
 ];
 
 const sides = [
     {
+        tag: 'Signed in',
         label: 'You, the card owner',
         items: [
             'Build one or more cards for each role you have',
             'Show your QR code or send your link',
             'Get every visitor lead as a contact with a follow-up date',
             'Scan paper cards you receive into contacts',
+            'Swap cards with other MetMemo users in one tap',
             'Ask the assistant who to follow up with and get drafts',
         ],
     },
     {
+        tag: 'No account needed',
         label: 'The people you meet',
         items: [
             'Scan your QR with their phone camera, no app needed',
@@ -166,6 +249,18 @@ const faqs = [
         answer: 'No. It suggests who to follow up with and drafts the message. You review it and send it yourself.',
     },
     {
+        question: 'What is a card swap?',
+        answer: "When you both use MetMemo, one of you scans the other's QR code and taps Swap. You each land in the other's contacts, with name, details and photo, and both of you are reminded to follow up.",
+    },
+    {
+        question: 'Can I take my contacts with me?',
+        answer: 'Yes. Export them any time as CSV, Excel or vCard, ready for Google Contacts, Outlook or your phone.',
+    },
+    {
+        question: 'Can anyone at MetMemo read my contacts?',
+        answer: "No. Administrators only see totals, such as how many accounts and contacts there are. No role can open another person's contacts, notes or assistant chats.",
+    },
+    {
         question: 'Can I have more than one card?',
         answer: 'Yes. Make a separate card for each role or business, each with its own link and QR code.',
     },
@@ -180,7 +275,6 @@ const useCases = [
         id: 'expos',
         title: 'Expos and trade shows',
         hint: 'Dozens of people a day at your booth',
-        icon: 'M13.5 21v-7.5a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349M3.75 21V9.349m0 0a3.001 3.001 0 0 0 3.75-.615A2.993 2.993 0 0 0 9.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 0 0 2.25 1.016c.896 0 1.7-.393 2.25-1.015a3.001 3.001 0 0 0 3.75.614m-16.5 0a3.004 3.004 0 0 1-.621-4.72l1.189-1.19A1.5 1.5 0 0 1 5.378 3h13.243a1.5 1.5 0 0 1 1.06.44l1.19 1.189a3 3 0 0 1-.621 4.72M6.75 18h3.75a.75.75 0 0 0 .75-.75V13.5a.75.75 0 0 0-.75-.75H6.75a.75.75 0 0 0-.75.75v3.75c0 .414.336.75.75.75Z',
         scenario: 'Three days at a booth, a stack of paper cards, and a week later you cannot remember who wanted a quote and who was just collecting freebies.',
         helps: [
             'Put your QR code on the booth so visitors save you and leave their details in seconds.',
@@ -193,7 +287,6 @@ const useCases = [
         id: 'sales',
         title: 'Sales and business development',
         hint: 'More than one role, one place for leads',
-        icon: 'M2.25 18 9 11.25l4.306 4.306a11.95 11.95 0 0 1 5.814-5.518l2.74-1.22m0 0-5.94-2.281m5.94 2.28-2.28 5.941',
         scenario: 'You meet prospects at client visits, events and meetings, and your follow-ups live in five different places.',
         helps: [
             'Make a separate card for each role or product line, each with its own link and QR code.',
@@ -206,7 +299,6 @@ const useCases = [
         id: 'students',
         title: 'Students and job seekers',
         hint: 'Career fairs and networking events',
-        icon: 'M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5',
         scenario: 'You talk to ten recruiters at a career fair, and the thank-you message you meant to send never gets sent.',
         helps: [
             'Share a professional card instead of a paper resume that gets lost.',
@@ -312,11 +404,6 @@ const openUseCase = (id) => {
                                         class="flex gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition"
                                         @click="openUseCase(useCase.id)"
                                     >
-                                        <span class="shrink-0 flex items-center justify-center size-9 rounded-lg bg-indigo-50 text-indigo-600">
-                                            <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" :d="useCase.icon" />
-                                            </svg>
-                                        </span>
                                         <span>
                                             <span class="block font-medium text-gray-900">{{ useCase.title }}</span>
                                             <span class="block text-xs text-gray-500 mt-0.5">{{ useCase.hint }}</span>
@@ -334,10 +421,10 @@ const openUseCase = (id) => {
                 <div class="flex items-center gap-2 sm:gap-3 text-sm">
                     <ThemeToggle />
                     <template v-if="canLogin">
-                        <Link v-if="$page.props.auth.user" :href="route('dashboard')" class="btn-accent">Dashboard</Link>
+                        <Link v-if="$page.props.auth.user" :href="route('dashboard')" class="btn-accent whitespace-nowrap px-4 sm:px-5">Dashboard</Link>
                         <template v-else>
                             <Link :href="route('login')" class="hidden sm:inline-block px-3 py-2 text-gray-600 hover:text-gray-900">Log in</Link>
-                            <Link v-if="canRegister" :href="route('register')" class="btn-accent">Get started</Link>
+                            <Link v-if="canRegister" :href="route('register')" class="btn-accent whitespace-nowrap px-4 sm:px-5">Get started</Link>
                         </template>
                     </template>
 
@@ -431,17 +518,51 @@ const openUseCase = (id) => {
                 <p class="mt-4 text-gray-600">You meet someone, they scan your card, and MetMemo remembers the conversation so it does not end there.</p>
             </div>
 
-            <ol class="mt-12 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                <li v-for="(step, i) in steps" :key="step.title" class="relative bg-white border border-gray-200 rounded-2xl p-6">
-                    <div class="flex items-center gap-3">
-                        <span class="flex items-center justify-center size-9 rounded-full bg-indigo-50 text-indigo-600 font-semibold text-sm">
-                            {{ i + 1 }}
-                        </span>
-                        <h3 class="font-semibold text-gray-900">{{ step.title }}</h3>
+            <!-- Roadmap: milestones on one line (down the side on phones). Scrolling draws the line from
+                 one milestone to the next; the latest one reached is solid with a pulse. -->
+            <ol ref="stepsSection" class="relative mt-14 grid grid-cols-1 lg:grid-cols-4">
+                <li
+                    v-for="(step, i) in steps"
+                    :key="step.title"
+                    class="relative flex gap-5 pb-10 last:pb-0 lg:flex-col lg:gap-0 lg:pb-0 lg:pe-10"
+                    :aria-current="nodeState(i) === 'active' ? 'step' : undefined"
+                >
+                    <!-- Connector to the next milestone: below on phones, to the right on large screens -->
+                    <div
+                        v-if="i < steps.length - 1"
+                        class="absolute start-5 top-12 bottom-2 w-0.5 -translate-x-1/2 overflow-hidden rounded-full bg-gray-200 lg:start-[3.25rem] lg:end-3 lg:top-[19px] lg:bottom-auto lg:h-px lg:w-auto lg:translate-x-0"
+                        aria-hidden="true"
+                    >
+                        <div class="road-fill absolute inset-0 bg-accent" :style="{ '--fill': connectorFill(i) }" />
                     </div>
-                    <p class="mt-4 text-sm text-gray-600 leading-relaxed">{{ step.body }}</p>
+
+                    <!-- Milestone -->
+                    <span class="relative z-10 flex size-10 shrink-0 items-center justify-center">
+                        <span v-if="nodeState(i) === 'active'" class="absolute inset-0 rounded-full bg-accent/25 motion-safe:animate-ping" aria-hidden="true" />
+                        <span
+                            :key="nodeState(i)"
+                            class="relative flex size-10 items-center justify-center rounded-full border text-[13px] font-semibold tabular-nums ring-[6px] ring-page transition-colors duration-300"
+                            :class="{
+                                'border-accent/60 bg-indigo-50 text-indigo-600': nodeState(i) === 'done',
+                                'road-pop border-accent bg-accent text-accent-fg': nodeState(i) === 'active',
+                                'border-gray-300 bg-page text-gray-500': nodeState(i) === 'todo',
+                            }"
+                        >
+                            {{ String(i + 1).padStart(2, '0') }}
+                        </span>
+                    </span>
+
+                    <div class="min-w-0 pt-1.5 lg:mt-7 lg:pt-0">
+                        <p class="text-xs font-semibold uppercase tracking-[0.08em] transition-colors duration-300" :class="nodeState(i) === 'todo' ? 'text-gray-400' : 'text-indigo-600'">{{ step.when }}</p>
+                        <h3 class="mt-1.5 text-lg font-semibold transition-colors duration-300" :class="nodeState(i) === 'todo' ? 'text-gray-500' : 'text-gray-900'">{{ step.title }}</h3>
+                        <p class="mt-2 text-[15px] leading-relaxed transition-colors duration-300" :class="nodeState(i) === 'todo' ? 'text-gray-400' : 'text-gray-600'">{{ step.body }}</p>
+                    </div>
                 </li>
             </ol>
+
+            <p class="mt-14 border-s-2 border-gray-300 ps-5 text-gray-600">
+                The assistant drafts, you decide. Nothing is ever sent without you.
+            </p>
         </section>
 
         <!-- Features -->
@@ -459,34 +580,66 @@ const openUseCase = (id) => {
                         :key="feature.title"
                         class="bg-white border border-gray-200 rounded-2xl p-8 sm:p-10 flex flex-col"
                     >
-                        <h3 class="text-2xl font-semibold text-gray-900">{{ feature.title }}</h3>
+                        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-indigo-600">0{{ i + 1 }}</p>
+                        <h3 class="mt-2 text-2xl font-semibold text-gray-900">{{ feature.title }}</h3>
                         <p class="mt-4 text-gray-600 leading-relaxed">{{ feature.body }}</p>
 
-                        <div v-if="i === 2" class="mt-8 -mx-8 sm:-mx-10 -mb-8 sm:-mb-10 border-t border-gray-200 bg-gray-50 rounded-b-2xl">
-                            <div class="flex text-sm border-b border-gray-200">
-                                <span class="px-5 py-3 font-medium text-gray-900 border-b-2 border-indigo-500">assistant</span>
-                                <span class="px-5 py-3 text-gray-500">tools</span>
+                        <!-- A small look at the real screen, same frame on all three cards -->
+                        <div class="mt-auto pt-8">
+                            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm" aria-hidden="true">
+                                <!-- Scan: the fields it read, one flagged -->
+                                <template v-if="i === 0">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">Read from the card</p>
+                                    <dl class="mt-3 space-y-2">
+                                        <div v-for="field in scanPreview" :key="field.label" class="flex items-center justify-between gap-3">
+                                            <dt class="text-gray-500">{{ field.label }}</dt>
+                                            <dd class="flex min-w-0 items-center gap-1.5 font-medium text-gray-900">
+                                                <span class="truncate">{{ field.value }}</span>
+                                                <span v-if="field.check" class="shrink-0 rounded-full bg-amber-400/15 px-2 py-px text-[11px] font-semibold text-amber-700 dark:text-amber-300">Check</span>
+                                            </dd>
+                                        </div>
+                                    </dl>
+                                </template>
+
+                                <!-- Remember: a question, and the answer with its source -->
+                                <template v-else-if="i === 1">
+                                    <p class="ms-auto w-fit max-w-[85%] rounded-2xl rounded-ee-md bg-gray-800 px-3 py-2 text-page">What did Juan want?</p>
+                                    <p class="mt-3 text-gray-700 leading-relaxed">A quote for 3 branches, decision by end of month.</p>
+                                    <p class="mt-2 inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs text-gray-500">
+                                        <span class="size-1.5 rounded-full bg-accent" />
+                                        Your note · Expo SMX
+                                    </p>
+                                </template>
+
+                                <!-- Follow up: who is due, with a draft ready -->
+                                <template v-else>
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">This week</p>
+                                    <ul class="mt-3 space-y-2.5">
+                                        <li v-for="person in followUpPreview" :key="person.name" class="flex items-center justify-between gap-3">
+                                            <span class="min-w-0">
+                                                <span class="block truncate font-medium text-gray-900">{{ person.name }}</span>
+                                                <span class="block truncate text-xs text-gray-500">{{ person.due }}</span>
+                                            </span>
+                                            <span class="shrink-0 rounded-md border border-gray-300 bg-white px-2 py-1 text-xs font-medium text-gray-700">Draft ready</span>
+                                        </li>
+                                    </ul>
+                                </template>
                             </div>
-                            <pre class="px-5 py-4 font-mono text-xs leading-relaxed text-gray-600 overflow-x-auto"><span class="text-gray-400"># who should I follow up with?</span>
-<span class="text-indigo-600">get_overdue_followups</span>(days=7)
-<span class="text-indigo-600">get_contact_notes</span>(id=42)
-<span class="text-indigo-600">draft_followup_message</span>(
-  contact=<span class="text-amber-600">"Juan, Expo SMX"</span>
-)</pre>
                         </div>
                     </div>
                 </div>
 
-                <div class="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                    <div v-for="feature in coreFeatures" :key="feature.title" class="flex gap-4 bg-white border border-gray-200 rounded-2xl p-6">
-                        <div class="shrink-0 flex items-center justify-center size-10 rounded-lg bg-indigo-50 text-indigo-600">
-                            <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" :d="feature.icon" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="font-semibold text-gray-900">{{ feature.title }}</h3>
-                            <p class="mt-1 text-sm text-gray-600">{{ feature.body }}</p>
+                <!-- Everything else, grouped: one bordered sheet, hairlines between cells -->
+                <div class="mt-16">
+                    <h3 class="text-xl font-semibold text-gray-900">And everything around it</h3>
+                    <div class="mt-6 grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-gray-200 bg-gray-200 sm:grid-cols-2 lg:grid-cols-3">
+                        <div v-for="feature in coreFeatures" :key="feature.title" class="bg-white p-6">
+                            <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">{{ feature.group }}</p>
+                            <h4 class="mt-2 font-semibold text-gray-900">
+                                {{ feature.title }}
+                                <span v-if="feature.new" class="ms-1.5 rounded-full bg-indigo-50 px-2 py-0.5 align-middle text-[11px] font-semibold text-indigo-600">New</span>
+                            </h4>
+                            <p class="mt-1.5 text-sm text-gray-600 leading-relaxed">{{ feature.body }}</p>
                         </div>
                     </div>
                 </div>
@@ -503,24 +656,23 @@ const openUseCase = (id) => {
                 </div>
 
                 <div class="mt-12 grid grid-cols-1 lg:grid-cols-3 gap-5">
-                    <!-- Use case tabs: a scrolling row on phones, a list on large screens -->
-                    <div class="flex lg:flex-col gap-2 overflow-x-auto -mx-4 px-4 lg:mx-0 lg:px-0 pb-2 lg:pb-0" role="tablist">
+                    <!-- Use case tabs: a stacked list (only three, so no sideways scrolling on phones) -->
+                    <div class="flex flex-col gap-2" role="tablist">
+                        <!-- Title and one line of who it's for; the active one gets the accent edge. -->
                         <button
                             v-for="useCase in useCases"
                             :key="useCase.id"
                             type="button"
                             role="tab"
                             :aria-selected="activeUseCase === useCase.id"
-                            class="shrink-0 flex items-center gap-3 px-4 py-3 rounded-xl border text-start text-sm font-medium transition"
+                            class="rounded-xl border border-s-[3px] px-4 py-3 lg:py-3.5 text-start transition"
                             :class="activeUseCase === useCase.id
-                                ? 'bg-white border-indigo-500 text-gray-900'
-                                : 'border-gray-200 text-gray-600 hover:bg-white hover:text-gray-900'"
+                                ? 'bg-white border-gray-200 border-s-accent'
+                                : 'border-gray-200 border-s-transparent hover:bg-white'"
                             @click="activeUseCase = useCase.id"
                         >
-                            <svg class="size-5 shrink-0" :class="activeUseCase === useCase.id ? 'text-indigo-500' : 'text-gray-400'" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" :d="useCase.icon" />
-                            </svg>
-                            <span class="whitespace-nowrap lg:whitespace-normal">{{ useCase.title }}</span>
+                            <span class="block text-sm font-semibold" :class="activeUseCase === useCase.id ? 'text-gray-900' : 'text-gray-700'">{{ useCase.title }}</span>
+                            <span class="mt-0.5 block text-[13px] text-gray-500">{{ useCase.hint }}</span>
                         </button>
                     </div>
 
@@ -531,28 +683,32 @@ const openUseCase = (id) => {
                             <p class="mt-3 text-gray-600 leading-relaxed">{{ currentUseCase.scenario }}</p>
 
                             <h4 class="mt-6 text-sm font-semibold text-gray-900">How MetMemo helps</h4>
-                            <ul class="mt-3 space-y-3">
-                                <li v-for="help in currentUseCase.helps" :key="help" class="flex gap-3 text-sm text-gray-600">
-                                    <svg class="size-5 shrink-0 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                                    </svg>
+                            <ol class="mt-3 divide-y divide-gray-200 border-y border-gray-200">
+                                <li v-for="(help, n) in currentUseCase.helps" :key="help" class="flex gap-4 py-3 text-sm text-gray-700 leading-relaxed">
+                                    <span class="w-5 shrink-0 pt-px text-xs font-semibold text-indigo-600 tabular-nums">0{{ n + 1 }}</span>
                                     {{ help }}
                                 </li>
-                            </ul>
+                            </ol>
                         </div>
 
                         <!-- Sample memo of someone you met -->
                         <div class="md:col-span-2 self-start">
                             <div class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Your memo</div>
-                            <div class="rounded-xl border border-gray-200 bg-gray-50 p-5">
-                                <div class="font-semibold text-gray-900">{{ currentUseCase.memo.name }}</div>
-                                <div class="text-xs text-gray-500 mt-0.5">Met at {{ currentUseCase.memo.where }}</div>
-                                <p class="mt-4 text-sm text-gray-700 leading-relaxed">{{ currentUseCase.memo.note }}</p>
-                                <div class="mt-4 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-medium">
-                                    <svg class="size-3.5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-                                    </svg>
-                                    {{ currentUseCase.memo.due }}
+                            <!-- Looks like the contact in the app: avatar, where you met, the note, when to follow up -->
+                            <div class="overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+                                <div class="flex items-center gap-3 p-4">
+                                    <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-sm font-semibold text-indigo-600">
+                                        {{ currentUseCase.memo.name.split(' ').map((part) => part[0]).slice(0, 2).join('') }}
+                                    </span>
+                                    <span class="min-w-0">
+                                        <span class="block truncate font-semibold text-gray-900">{{ currentUseCase.memo.name }}</span>
+                                        <span class="block truncate text-xs text-gray-500">{{ currentUseCase.memo.where }}</span>
+                                    </span>
+                                </div>
+                                <p class="border-t border-gray-200 bg-white px-4 py-3 text-sm text-gray-700 leading-relaxed">{{ currentUseCase.memo.note }}</p>
+                                <div class="flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-2.5 text-xs">
+                                    <span class="text-gray-500">Follow up</span>
+                                    <span class="font-semibold text-gray-900">{{ currentUseCase.memo.due.replace('Follow up ', '') }}</span>
                                 </div>
                             </div>
                         </div>
@@ -571,14 +727,10 @@ const openUseCase = (id) => {
 
                 <div class="mt-12 grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div v-for="side in sides" :key="side.label" class="bg-white border border-gray-200 rounded-2xl p-8">
-                        <h3 class="text-xl font-semibold text-gray-900">{{ side.label }}</h3>
-                        <ul class="mt-6 space-y-3">
-                            <li v-for="item in side.items" :key="item" class="flex gap-3 text-gray-600">
-                                <svg class="size-5 shrink-0 mt-0.5 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-                                </svg>
-                                {{ item }}
-                            </li>
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">{{ side.tag }}</p>
+                        <h3 class="mt-2 text-xl font-semibold text-gray-900">{{ side.label }}</h3>
+                        <ul class="mt-6 divide-y divide-gray-200 border-t border-gray-200">
+                            <li v-for="item in side.items" :key="item" class="py-3 text-gray-700">{{ item }}</li>
                         </ul>
                     </div>
                 </div>
@@ -674,3 +826,35 @@ const openUseCase = (id) => {
         </footer>
     </div>
 </template>
+
+<style scoped>
+/* How it works roadmap: each line's fill follows the scroll (--fill, 0 to 1). Down on phones, across from 1024px. */
+.road-fill {
+    transform: scaleY(var(--fill, 0));
+    transform-origin: top;
+}
+
+/* A milestone pops as the line reaches it. */
+.road-pop {
+    animation: road-pop 450ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes road-pop {
+    0% { transform: scale(0.8); }
+    60% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .road-pop {
+        animation: none;
+    }
+}
+
+@media (min-width: 1024px) {
+    .road-fill {
+        transform: scaleX(var(--fill, 0));
+        transform-origin: left;
+    }
+}
+</style>
