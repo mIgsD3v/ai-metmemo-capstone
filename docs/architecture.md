@@ -133,7 +133,7 @@ sequenceDiagram
     A->>G: moderation, PII, citations point at real notes
     A->>R: store answer (10 min)
     A-->>L: answer, sources, drafts, tool calls
-    L-->>U: answer with citation chips; chat saved
+    L-->>U: answer with citation chips, chat saved
 ```
 
 | Spec item | How MetMemo covers it |
