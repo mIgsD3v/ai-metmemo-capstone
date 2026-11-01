@@ -51,6 +51,10 @@ MAIL_MAILER=log
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
 
+# Super Admin made by db:seed. Empty password: a random one is printed once when seeding.
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=
+
 AI_SERVICE_URL=http://ai:8002
 AI_SERVICE_TOKEN=${internal_token}
 AI_INDEX_NOTES=true

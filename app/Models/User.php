@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Support\Access;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,18 +13,23 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Laravel\Jetstream\HasProfilePhoto;
 use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     use HasApiTokens;
-    use HasUuids;
-
     /** @use HasFactory<UserFactory> */
     use HasFactory;
 
     use HasProfilePhoto;
+
+    use HasRoles;
+    use HasUuids;
     use Notifiable;
     use TwoFactorAuthenticatable;
+
+    /** Roles live on the web guard, also for requests signed in through Sanctum. */
+    protected string $guard_name = 'web';
 
     /**
      * The attributes that are mass assignable.
@@ -69,6 +75,16 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Every new account (sign-up, Google, seeders, tests) starts as a Member.
+        static::created(function (User $user) {
+            if (Role::query()->where('name', Access::MEMBER)->exists()) {
+                $user->assignRole(Access::MEMBER);
+            }
+        });
     }
 
     public function cards(): HasMany

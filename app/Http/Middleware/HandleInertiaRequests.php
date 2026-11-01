@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Access;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,8 @@ class HandleInertiaRequests extends Middleware
             'notifications' => fn () => $request->user() ? [
                 'unread' => $request->user()->unreadNotifications()->count(),
             ] : null,
+            // What the signed-in user may do: hides links they can't use (the server still checks every request).
+            'permissions' => fn () => $request->user() ? Access::for($request->user()) : [],
             // Show "Continue with Google" only when a Google OAuth client is configured.
             'googleLogin' => (bool) config('services.google.client_id'),
             // The sidebar's counts: who is due (same rule as the dashboard), contacts and cards.

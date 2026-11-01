@@ -7,6 +7,7 @@ import SidebarLink from '@/Components/SidebarLink.vue';
 import ThemeToggle from '@/Components/ThemeToggle.vue';
 import NotificationBell from '@/Components/NotificationBell.vue';
 import { sidebarExpanded, toggleSidebar } from '@/sidebar';
+import { adminPages, can } from '@/permissions';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 
 defineProps({
@@ -31,23 +32,28 @@ const icons = {
 const nav = [
     { label: 'Home', sidebarLabel: 'Dashboard', route: 'dashboard', match: 'dashboard', icon: icons.home, group: 'workspace', count: 'due', tone: 'warning' },
     // Desktop only: the phone tab bar is full; phones reach it from the Dashboard.
-    { label: 'Insights', route: 'insights', match: 'insights', icon: icons.insights, desktopOnly: true, group: 'workspace', order: 4 },
-    { label: 'Assistant', route: 'assistant.show', match: 'assistant.*', icon: icons.assistant, group: 'workspace', order: 3 },
-    { label: 'Scan', sidebarLabel: 'Scan a card', route: 'scan.create', match: 'scan.*', icon: icons.scan, primary: true },
-    { label: 'Contacts', route: 'contacts.index', match: 'contacts.*', icon: icons.contacts, group: 'workspace', order: 2, count: 'contacts' },
-    { label: 'Cards', sidebarLabel: 'My Cards', route: 'cards.index', match: 'cards.*', icon: icons.cards, group: 'cards', count: 'cards' },
+    { label: 'Insights', route: 'insights', permission: 'insights.view', match: 'insights', icon: icons.insights, desktopOnly: true, group: 'workspace', order: 4 },
+    { label: 'Assistant', route: 'assistant.show', permission: 'assistant.use', match: 'assistant.*', icon: icons.assistant, group: 'workspace', order: 3 },
+    { label: 'Scan', sidebarLabel: 'Scan a card', route: 'scan.create', permission: 'scan.use', match: 'scan.*', icon: icons.scan, primary: true },
+    { label: 'Contacts', route: 'contacts.index', permission: 'contacts.view', match: 'contacts.*', icon: icons.contacts, group: 'workspace', order: 2, count: 'contacts' },
+    { label: 'Cards', sidebarLabel: 'My Cards', route: 'cards.index', permission: 'cards.view', match: 'cards.*', icon: icons.cards, group: 'cards', count: 'cards' },
     // Profile isn't a tab on phones: it's in the account menu at the top right.
 ];
 
-// Desktop sidebar: the scan button on top, then "Workspace" and "Your cards" groups (ordered differently from the tab bar).
-const scanItem = nav.find((item) => item.primary);
-const sidebarGroups = [
+// Only what the user's role allows (the server checks each page too).
+const allowed = computed(() => nav.filter((item) => ! item.permission || can(item.permission)));
+const tabs = computed(() => allowed.value.filter((item) => ! item.desktopOnly));
+const admin = computed(() => adminPages.filter((item) => can(item.permission)));
+
+// Desktop sidebar: the scan button on top, then "Workspace", "Your cards" and "Admin" groups (ordered differently from the tab bar).
+const scanItem = computed(() => allowed.value.find((item) => item.primary));
+const sidebarGroups = computed(() => [
     { key: 'workspace', label: 'Workspace' },
     { key: 'cards', label: 'Your cards' },
 ].map((group) => ({
     ...group,
-    items: nav.filter((item) => item.group === group.key).sort((a, b) => (a.order ?? 1) - (b.order ?? 1)),
-}));
+    items: allowed.value.filter((item) => item.group === group.key).sort((a, b) => (a.order ?? 1) - (b.order ?? 1)),
+})).concat(admin.value.length ? [{ key: 'admin', label: 'Admin', items: admin.value }] : []).filter((group) => group.items.length));
 
 const page = usePage();
 const userTitle = computed(() => `${page.props.auth.user.name} · ${page.props.auth.user.email}`);
@@ -111,6 +117,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
                                 <div class="text-xs text-gray-500 truncate">{{ $page.props.auth.user.email }}</div>
                             </div>
                             <DropdownLink :href="route('profile.show')">Profile</DropdownLink>
+                            <DropdownLink v-if="admin.length" :href="route(admin[0].route)">Admin</DropdownLink>
                             <form @submit.prevent="logout">
                                 <DropdownLink as="button">Log Out</DropdownLink>
                             </form>
@@ -157,6 +164,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
                 <!-- Collapsed: no overflow clipping, so the hover labels can show beside the icons. -->
                 <nav class="flex-1 py-4" :class="sidebarExpanded ? 'px-3 overflow-y-auto' : 'px-2.5'" aria-label="Main">
                     <!-- Scan a card: the main action, a full button when expanded -->
+                    <template v-if="scanItem">
                     <Link
                         v-if="sidebarExpanded"
                         :href="route(scanItem.route)"
@@ -180,6 +188,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
                             <path stroke-linecap="round" stroke-linejoin="round" :d="scanItem.icon" />
                         </svg>
                     </SidebarLink>
+                    </template>
 
                     <div
                         v-for="(group, g) in sidebarGroups"
@@ -256,7 +265,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
                 <!-- Desktop top bar: same height and glass style as the phone bar, lined up with the sidebar's logo row. -->
                 <div class="hidden lg:block sticky top-0 z-30 h-16 bg-page/85 backdrop-blur border-b border-gray-200">
                     <div class="page h-full flex items-center gap-4">
-                        <form v-if="! route().current('contacts.index')" class="relative w-full max-w-md" role="search" @submit.prevent="searchContacts">
+                        <form v-if="can('contacts.view') && ! route().current('contacts.index')" class="relative w-full max-w-md" role="search" @submit.prevent="searchContacts">
                             <svg class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
                             </svg>
@@ -272,7 +281,7 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
                         </form>
                         <div class="ms-auto flex items-center gap-2">
                             <NotificationBell />
-                            <Link :href="route('contacts.create')" class="btn-quiet h-10 px-3.5 text-sm">
+                            <Link v-if="can('contacts.create')" :href="route('contacts.create')" class="btn-quiet h-10 px-3.5 text-sm">
                                 <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                                 </svg>
@@ -300,9 +309,9 @@ onUnmounted(() => document.removeEventListener('keydown', focusSearch));
                 style="padding-bottom: env(safe-area-inset-bottom, 0px)"
                 aria-label="Main"
             >
-                <div class="grid grid-cols-5 items-end h-[66px] pb-2 px-1 max-w-md mx-auto">
+                <div class="grid items-end h-[66px] pb-2 px-1 max-w-md mx-auto" :style="{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }">
                     <Link
-                        v-for="item in nav.filter((item) => ! item.desktopOnly)"
+                        v-for="item in tabs"
                         :key="item.route"
                         :href="route(item.route)"
                         class="relative flex flex-col items-center justify-end gap-1 h-[52px] text-[11px] font-medium transition"

@@ -34,7 +34,8 @@ nano ai-service/.env.production             # add OPENAI_API_KEY and the LANGFUS
 # 3. Build and start (first build: about 10 minutes)
 deploy/deploy.sh
 
-# 4. Demo data: the seeded broker account (test@example.com / password) and its notes index
+# 4. Demo data: the Super Admin (admin@example.com; its random password is printed once, save it),
+#    the seeded broker account (test@example.com / password) and its notes index
 docker compose -f compose.prod.yml exec app php artisan db:seed --force
 docker compose -f compose.prod.yml exec app php artisan metmemo:index-notes
 ```

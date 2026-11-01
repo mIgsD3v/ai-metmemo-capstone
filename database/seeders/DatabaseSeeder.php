@@ -7,11 +7,11 @@ use Illuminate\Database\Seeder;
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the demo owner (a real-estate broker) with one card and realistic contacts and notes.
-     * Login: test@example.com / password
+     * Seed the Super Admin and the demo owner (a real-estate broker) with one card and realistic contacts and notes.
+     * Logins: admin@example.com (see AdminSeeder for the password) and test@example.com / password
      */
     public function run(): void
     {
-        $this->call(DemoContactsSeeder::class);
+        $this->call([AdminSeeder::class, DemoContactsSeeder::class]);
     }
 }

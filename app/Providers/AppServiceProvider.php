@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\User;
 use App\Services\Ai\AiServiceClient;
+use App\Support\Access;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -24,6 +27,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // A Super Admin has every permission. Only permissions: ownership checks (someone's contact, card,
+        // chat) still apply, so no role can open another account's data.
+        Gate::before(fn (User $user, string $ability) => in_array($ability, Access::all(), true) && $user->hasRole(Access::SUPER_ADMIN) ? true : null);
     }
 }
