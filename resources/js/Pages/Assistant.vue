@@ -7,11 +7,12 @@ import { ask as confirm } from '@/confirm';
 import { timeAgo } from '@/dates';
 
 // Each suggestion shows the kind of question it is: due list, topic search, a promise, a draft.
+// No names: they must make sense in any account, not only the demo data.
 const suggestions = [
     { text: 'Who should I follow up with today?', tone: 'text-amber-600 dark:text-amber-300', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },
-    { text: 'Who wanted a pet-friendly place?', tone: 'text-blue-600 dark:text-blue-300', icon: 'm21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z' },
-    { text: 'What did I promise Elena?', tone: 'text-violet-600 dark:text-violet-300', icon: 'M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z' },
-    { text: 'Draft a follow-up email to Andrea about the shortlist I promised', tone: 'text-indigo-600', icon: 'M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75' },
+    { text: 'Who asked me for a price or a quote?', tone: 'text-blue-600 dark:text-blue-300', icon: 'm21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z' },
+    { text: 'What did I promise to send people?', tone: 'text-violet-600 dark:text-violet-300', icon: 'M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 0 1 .865-.501 48.172 48.172 0 0 0 3.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z' },
+    { text: 'Draft a follow-up to my most overdue contact', tone: 'text-indigo-600', icon: 'M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75' },
 ];
 
 // What each tool means, for the "Checked:" line under an answer.
@@ -280,7 +281,12 @@ onMounted(() => {
                         <h1 class="text-[22px] sm:text-[26px] font-bold tracking-[-0.02em] text-gray-900">What do you need to remember?</h1>
                         <p class="text-[15px] leading-relaxed text-gray-500">Ask about anyone you've met. Answers come from your contacts and meeting notes, and show which notes were used.</p>
                     </div>
-                    <div class="grid w-full max-w-[720px] gap-2.5 sm:grid-cols-2">
+                    <!-- With no contacts there is nothing to answer from, so don't offer questions that only spend a model call. -->
+                    <div v-if="! $page.props.counts?.contacts" class="panel flex w-full max-w-[520px] flex-col items-center gap-3 px-5 py-5 text-center text-sm text-gray-500">
+                        <p>You have no contacts yet. Add someone you met, or scan their card, and the assistant can answer about them.</p>
+                        <Link :href="route('contacts.create')" class="font-medium text-indigo-600 hover:underline">Add a contact</Link>
+                    </div>
+                    <div v-else class="grid w-full max-w-[720px] gap-2.5 sm:grid-cols-2">
                         <button
                             v-for="suggestion in suggestions"
                             :key="suggestion.text"
