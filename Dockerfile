@@ -26,4 +26,4 @@ RUN install-php-extensions pdo_pgsql intl zip opcache pcntl
 COPY deploy/php.ini $PHP_INI_DIR/conf.d/metmemo.ini
 WORKDIR /app
 COPY --from=vendor /app /app
-COPY --from=assets /app/public/build /app/pub0lic/build
+COPY --from=assets /app/public/build /app/public/build
