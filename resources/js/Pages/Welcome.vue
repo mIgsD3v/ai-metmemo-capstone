@@ -330,10 +330,10 @@ const openUseCase = (id) => {
     <div class="min-h-screen bg-page text-gray-800">
         <!-- Header -->
         <header class="sticky top-0 z-40 bg-page/80 backdrop-blur border-b border-gray-200">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 sm:h-20 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-8">
                     <Link href="/">
-                        <ApplicationMark />
+                        <ApplicationMark class="max-sm:!text-2xl" />
                     </Link>
 
                     <nav class="hidden md:flex items-center gap-1 text-sm">
@@ -418,13 +418,14 @@ const openUseCase = (id) => {
                     </nav>
                 </div>
 
-                <div class="flex items-center gap-2 sm:gap-3 text-sm">
-                    <ThemeToggle />
+                <div class="flex items-center gap-1 sm:gap-3 text-sm">
+                    <!-- Phones get the theme switch inside the menu, so the header fits. -->
+                    <ThemeToggle class="hidden md:inline-flex" />
                     <template v-if="canLogin">
                         <Link v-if="$page.props.auth.user" :href="route('dashboard')" class="btn-accent whitespace-nowrap px-4 sm:px-5">Dashboard</Link>
                         <template v-else>
                             <Link :href="route('login')" class="hidden sm:inline-block px-3 py-2 text-gray-600 hover:text-gray-900">Log in</Link>
-                            <Link v-if="canRegister" :href="route('register')" class="btn-accent whitespace-nowrap px-4 sm:px-5">Get started</Link>
+                            <Link v-if="canRegister" :href="route('register')" class="btn-accent whitespace-nowrap px-3.5 py-2 sm:px-5 sm:py-2.5">Get started</Link>
                         </template>
                     </template>
 
@@ -457,6 +458,10 @@ const openUseCase = (id) => {
                 <Link v-if="canLogin && ! $page.props.auth.user" :href="route('login')" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-50">
                     Log in
                 </Link>
+                <div class="flex items-center justify-between border-t border-gray-200 mt-2 pt-2 ps-3 text-gray-700">
+                    Theme
+                    <ThemeToggle />
+                </div>
             </div>
         </header>
 
