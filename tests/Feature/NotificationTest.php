@@ -5,9 +5,11 @@ namespace Tests\Feature;
 use App\Models\Card;
 use App\Models\Contact;
 use App\Models\User;
+use App\Notifications\CardsSwapped;
 use App\Notifications\FollowUpsDue;
 use App\Notifications\NewLeadCaptured;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -45,10 +47,86 @@ class NotificationTest extends TestCase
         $user = User::factory()->create();
         $notification = new FollowUpsDue(1, 0, ['Juan']);
 
-        $this->assertSame(['database'], $notification->via($user));
+        $this->assertSame(['database', 'mail'], $notification->via($user));
 
         config(['broadcasting.default' => 'pusher']);
-        $this->assertSame(['database', 'broadcast'], $notification->via($user));
+        $this->assertSame(['database', 'broadcast', 'mail'], $notification->via($user));
+    }
+
+    public function test_the_log_mailer_sends_no_email_so_contact_names_stay_out_of_the_logs(): void
+    {
+        config(['mail.default' => 'log']);
+
+        $this->assertSame(['database'], (new FollowUpsDue(1, 0, ['Juan']))->via(User::factory()->create()));
+    }
+
+    public function test_every_notification_is_also_emailed(): void
+    {
+        $card = Card::factory()->create(['company' => 'Herma Corporation']);
+        $contact = Contact::factory()->for($card->user)->create(['full_name' => 'Maria Santos', 'company' => 'Acme']);
+        $notifications = [new NewLeadCaptured($contact, $card), new CardsSwapped($contact, $card), new FollowUpsDue(2, 1, ['Ana', 'Ben'])];
+
+        Notification::fake();
+
+        foreach ($notifications as $notification) {
+            $card->user->notify($notification);
+            Notification::assertSentTo($card->user, $notification::class, fn ($sent, array $channels) => in_array('mail', $channels, true));
+
+            $mail = $notification->toMail($card->user);
+            $this->assertSame($notification->toArray($card->user)['title'], $mail->subject);
+            $this->assertSame($notification->toArray($card->user)['url'], $mail->actionUrl);
+        }
+    }
+
+    public function test_the_bell_is_instant_while_the_email_waits_on_the_queue(): void
+    {
+        config(['queue.default' => 'database']);
+        Mail::fake();
+        $user = User::factory()->create();
+
+        $user->notify(new FollowUpsDue(1, 0, ['Juan']));
+
+        $this->assertSame('1 follow-up due today', $user->notifications()->sole()->data['title']);
+        $this->assertDatabaseCount('jobs', 1);
+        Mail::assertNothingOutgoing();
+    }
+
+    public function test_the_queue_worker_sends_the_email(): void
+    {
+        config(['queue.default' => 'database']);
+        $card = Card::factory()->create();
+        $contact = Contact::factory()->for($card->user)->create(['full_name' => 'Maria Santos']);
+
+        $card->user->notify(new NewLeadCaptured($contact, $card));
+        $this->artisan('queue:work', ['--once' => true]);
+
+        $this->assertDatabaseCount('jobs', 0);
+        $this->assertDatabaseCount('failed_jobs', 0);
+
+        $email = app('mailer')->getSymfonyTransport()->messages()->sole()->getOriginalMessage();
+        $this->assertSame('New lead from your card', $email->getSubject());
+        $this->assertSame($card->user->email, $email->getTo()[0]->getAddress());
+    }
+
+    public function test_a_visitors_name_cannot_put_a_link_in_the_owners_email(): void
+    {
+        $card = Card::factory()->create();
+        $contact = Contact::factory()->for($card->user)->create(['full_name' => '[Verify your account](https://evil.example) <b>now</b>', 'company' => null]);
+
+        $html = (string) (new NewLeadCaptured($contact, $card))->toMail($card->user)->render();
+
+        $this->assertStringNotContainsString('href="https://evil.example"', $html);
+        $this->assertStringNotContainsString('<b>now</b>', $html);
+        $this->assertStringContainsString('Verify your account', $html);
+        $this->assertStringContainsString('View contact', $html);
+    }
+
+    public function test_emails_use_the_brand_green_button(): void
+    {
+        $card = Card::factory()->create();
+        $html = (string) (new FollowUpsDue(1, 0, ['Juan']))->toMail($card->user)->render();
+
+        $this->assertStringContainsString('#16a34a', $html);
     }
 
     public function test_morning_reminder_summarises_due_and_overdue_follow_ups_once_a_day(): void

@@ -54,6 +54,7 @@ cd /opt/metmemo && deploy/deploy.sh
 | Logs (guardrail blocks, cache hits, errors) | `docker compose -f compose.prod.yml logs -f ai app` |
 | Restart one service | `docker compose -f compose.prod.yml restart ai` |
 | Re-index notes | `docker compose -f compose.prod.yml exec app php artisan metmemo:index-notes` |
+| Failed notification emails | `docker compose -f compose.prod.yml exec app php artisan queue:failed` |
 | Clear the AI cache | `docker compose -f compose.prod.yml exec redis redis-cli FLUSHDB` |
 
 **Secrets** are only in `.env.production` and `ai-service/.env.production` on the server (mode 600, git-ignored).

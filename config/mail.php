@@ -115,4 +115,19 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Markdown Mail Settings
+    |--------------------------------------------------------------------------
+    |
+    | Emails use the framework's layout with the MetMemo theme, which only
+    | changes the button to the brand green.
+    |
+    */
+
+    'markdown' => [
+        'theme' => 'metmemo',
+        'paths' => [resource_path('views/vendor/mail')],
+    ],
+
 ];

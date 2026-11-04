@@ -28,6 +28,16 @@ services:
       - app-storage:/app/storage
     depends_on: [app]
 
+  # Sends notification emails in the background, so a visitor never waits on the mail server.
+  queue:
+    image: metmemo-app
+    restart: unless-stopped
+    env_file: .env.production
+    command: ["php", "artisan", "queue:work", "--tries=3", "--backoff=60", "--max-time=3600"]
+    volumes:
+      - app-storage:/app/storage
+    depends_on: [app]
+
   ai:
     build: ./ai-service
     restart: unless-stopped

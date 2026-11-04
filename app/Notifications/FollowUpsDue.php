@@ -27,4 +27,9 @@ class FollowUpsDue extends MetMemoNotification
             'url' => route('dashboard'),
         ];
     }
+
+    protected function actionText(): string
+    {
+        return 'See who is due';
+    }
 }
