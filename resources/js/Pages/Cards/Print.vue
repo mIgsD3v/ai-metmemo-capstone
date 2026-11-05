@@ -50,7 +50,7 @@ const isLocalUrl = computed(() => {
 
 onMounted(async () => {
     // High resolution so it stays sharp on paper; black on white for reliable scanning.
-    qr.value = await QRCode.toDataURL(props.card.public_url, { width: 720, margin: 0, errorCorrectionLevel: 'M' });
+    qr.value = await QRCode.toDataURL(props.card.qr_url, { width: 720, margin: 0, errorCorrectionLevel: 'M' });
 });
 
 // Print setup: only the cards print, at the right paper size.

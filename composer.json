@@ -15,6 +15,7 @@
         "laravel/socialite": "^5.31",
         "laravel/tinker": "^2.10.1",
         "openspout/openspout": "^5.3",
+        "propaganistas/laravel-phone": "^6.1",
         "pusher/pusher-php-server": "^7.3",
         "spatie/laravel-permission": "^8.3",
         "tightenco/ziggy": "^2.0"

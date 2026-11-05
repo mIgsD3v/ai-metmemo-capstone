@@ -22,7 +22,7 @@ class CardFactory extends Factory
             'company' => fake()->company(),
             'bio' => fake()->sentence(16),
             'email' => fake()->safeEmail(),
-            'phone' => '+63 9'.fake()->numerify('## ### ####'),
+            'phone' => '+63 917 '.fake()->numerify('### ####'),
             'website' => fake()->url(),
             'location' => fake()->randomElement(['Makati City', 'Quezon City', 'Cebu City', 'Davao City', 'Pasig City']),
             'is_public' => true,

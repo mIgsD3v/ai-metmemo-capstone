@@ -130,6 +130,12 @@ class ContactService
         ]);
     }
 
+    /** You decided not to follow up: off the "due" list, without recording that you reached out. */
+    public function skipFollowUp(Contact $contact): Contact
+    {
+        return $this->contacts->update($contact, ['next_follow_up_at' => null]);
+    }
+
     /**
      * @param  int  $withinDays  0 = due today or overdue; 7 = also those due in the coming week.
      * @return Collection<int, Contact>
@@ -197,7 +203,7 @@ class ContactService
         $owner = $theirs->user;
 
         $visitorDetails = $mine
-            ? $mine->only(['full_name', 'email', 'phone', 'company', 'job_title'])
+            ? $mine->only(['full_name', 'email', 'phone', 'telephone', 'company', 'job_title'])
             : ['full_name' => $visitor->name, 'email' => $visitor->email];
 
         // The photo each side sees on the card: the card's own, else the account photo. Without a card, the
@@ -208,7 +214,7 @@ class ContactService
 
         [$forOwner, $isNew] = DB::transaction(function () use ($owner, $visitor, $theirs, $mine, $visitorDetails, $visitorPhoto) {
             [$forOwner, $isNew] = $this->saveSwapContact($owner, $visitor, $visitorDetails, $visitorPhoto, $theirs->id);
-            $this->saveSwapContact($visitor, $owner, $theirs->only(['full_name', 'email', 'phone', 'company', 'job_title']), $theirs->displayPhotoFile(), $mine?->id);
+            $this->saveSwapContact($visitor, $owner, $theirs->only(['full_name', 'email', 'phone', 'telephone', 'company', 'job_title']), $theirs->displayPhotoFile(), $mine?->id);
 
             return [$forOwner, $isNew];
         });

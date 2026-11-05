@@ -39,6 +39,7 @@ def test_scanner_returns_reviewable_fields(monkeypatch):
             "full_name": {"value": "Juan Dela Cruz", "confidence": 0.98, "needs_review": False},
             "email": {"value": "juan@example.ph", "confidence": 0.6, "needs_review": False},
             "phone": {"value": None, "confidence": 0.4, "needs_review": True},
+            "telephone": {"value": "(02) 8123 4567", "confidence": 0.95, "needs_review": False},
             "company": {"value": "Cruz Trading", "confidence": 0.9, "needs_review": True},
             "job_title": {"value": "  ", "confidence": 0.9, "needs_review": False},
         })
@@ -52,6 +53,8 @@ def test_scanner_returns_reviewable_fields(monkeypatch):
     # Missing fields are empty, not flagged, and never invented.
     assert body["phone"] == {"value": None, "confidence": 0.0, "needs_review": False}
     assert body["job_title"]["value"] is None
+    # A landline is read into its own field, as printed.
+    assert body["telephone"] == {"value": "(02) 8123 4567", "confidence": 0.95, "needs_review": False}
     # The model's own flag is kept.
     assert body["company"]["needs_review"] is True
 

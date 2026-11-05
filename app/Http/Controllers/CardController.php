@@ -28,6 +28,7 @@ class CardController extends Controller
                 ...$card->only(['id', 'full_name', 'job_title', 'company', 'is_public', 'contacts_count', 'leads_count']),
                 'photo_url' => $card->displayPhotoUrl(),
                 'public_url' => route('public-card.show', $card),
+                'qr_url' => $card->qrUrl(),
             ]),
         ]);
     }
@@ -81,8 +82,9 @@ class CardController extends Controller
 
         return Inertia::render('Cards/Print', [
             'card' => [
-                ...$card->only(['id', 'full_name', 'job_title', 'company', 'email', 'phone', 'website', 'location', 'is_public']),
+                ...$card->only(['id', 'full_name', 'job_title', 'company', 'email', 'phone', 'telephone', 'website', 'location', 'is_public']),
                 'public_url' => route('public-card.show', $card),
+                'qr_url' => $card->qrUrl(),
             ],
         ]);
     }

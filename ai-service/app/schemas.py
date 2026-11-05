@@ -19,6 +19,7 @@ class ScanResponse(BaseModel):
     full_name: ScannedField
     email: ScannedField
     phone: ScannedField
+    telephone: ScannedField
     company: ScannedField
     job_title: ScannedField
 

@@ -1,6 +1,8 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { phoneIcons, smsHref, telHref } from '@/phone';
+import PhoneInput from '@/Components/PhoneInput.vue';
 import ApplicationMark from '@/Components/ApplicationMark.vue';
 import InputError from '@/Components/InputError.vue';
 import QrCode from '@/Components/QrCode.vue';
@@ -10,6 +12,8 @@ import { copyText } from '@/clipboard';
 const props = defineProps({
     card: Object,
     publicUrl: String,
+    qrUrl: String, // what the QR code holds: the link, marked as scanned
+    autoSwap: Boolean, // opened from a QR by a signed-in member: swap without a tap
     // A signed-in visitor: { isOwner } for the card's owner, else { name, cards, swappedContactId }. Null for guests.
     viewer: Object,
 });
@@ -50,15 +54,16 @@ const icons = {
 
 // One-tap actions under "Save to contacts": only the ones this card has details for.
 const quickActions = computed(() => [
-    props.card.phone && { label: 'Call', icon: icons.phone, href: `tel:${props.card.phone}` },
+    (props.card.phone || props.card.telephone) && { label: 'Call', icon: icons.phone, href: telHref(props.card.phone || props.card.telephone) },
     props.card.email && { label: 'Email', icon: icons.email, href: `mailto:${props.card.email}` },
-    props.card.phone && { label: 'Text', icon: icons.text, href: `sms:${props.card.phone}` },
+    props.card.phone && { label: 'Text', icon: icons.text, href: smsHref(props.card.phone) },
     props.card.website && { label: 'Website', icon: icons.web, href: props.card.website, external: true },
 ].filter(Boolean));
 
 const details = computed(() => [
     props.card.email && { icon: icons.email, label: 'Email', value: props.card.email, href: `mailto:${props.card.email}`, copy: true },
-    props.card.phone && { icon: icons.phone, label: 'Phone', value: props.card.phone, href: `tel:${props.card.phone}`, copy: true },
+    props.card.phone && { icon: phoneIcons.mobile, label: 'Mobile', value: props.card.phone, href: telHref(props.card.phone), copy: true },
+    props.card.telephone && { icon: phoneIcons.telephone, label: 'Telephone', value: props.card.telephone, href: telHref(props.card.telephone), copy: true },
     props.card.website && { icon: icons.web, label: 'Website', value: websiteLabel.value, href: props.card.website, external: true },
 ].filter(Boolean));
 
@@ -87,6 +92,11 @@ const lead = useForm({
 // Swap cards (signed-in visitors): send one of your cards, newest first by default.
 const swap = useForm({ card_id: props.viewer?.cards?.[0]?.id ?? null });
 const submitSwap = () => swap.post(route('public-card.swap', props.card.id));
+
+// Scanned with the phone's camera while signed in: swap straight away, like the in-app Scan.
+onMounted(() => {
+    if (props.autoSwap) submitSwap();
+});
 const viewerInitials = (props.viewer?.name ?? '').split(/\s+/).filter(Boolean).map((word) => word[0]).slice(0, 2).join('').toUpperCase();
 
 const sent = ref(false);
@@ -275,7 +285,7 @@ const labelClass = 'flex flex-col gap-[7px] text-[13px] font-medium text-gray-60
                             </label>
                             <label :class="labelClass">
                                 Phone
-                                <input v-model="lead.phone" type="tel" autocomplete="tel" placeholder="+63 917 …" :class="fieldClass">
+                                <PhoneInput v-model="lead.phone" autocomplete="tel-national" :field-class="fieldClass" />
                                 <InputError :message="lead.errors.phone" />
                             </label>
                         </div>
@@ -309,7 +319,7 @@ const labelClass = 'flex flex-col gap-[7px] text-[13px] font-medium text-gray-60
             <!-- Pass this card on -->
             <section class="mx-4 mt-4 flex items-center gap-3.5 sm:gap-4 rounded-[18px] sm:rounded-[20px] border border-gray-200 bg-white p-3.5 sm:p-4 sm:mx-0 lg:col-start-1 lg:row-start-2 lg:mt-0">
                 <div class="shrink-0 rounded-xl bg-[#fff] p-1">
-                    <QrCode :value="publicUrl" :size="68" />
+                    <QrCode :value="qrUrl" :size="68" />
                 </div>
                 <div class="min-w-0 flex-1 space-y-0.5">
                     <p class="text-[15px] font-semibold">Pass this card on</p>

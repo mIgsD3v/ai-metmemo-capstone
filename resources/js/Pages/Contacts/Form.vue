@@ -4,9 +4,11 @@ import { Link, useForm } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
+import PhoneInput from '@/Components/PhoneInput.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 import { addDays, today } from '@/dates';
+import { phoneIcons } from '@/phone';
 
 const props = defineProps({
     contact: Object,
@@ -22,6 +24,7 @@ const form = useForm({
     company: props.contact?.company ?? '',
     email: props.contact?.email ?? '',
     phone: props.contact?.phone ?? '',
+    telephone: props.contact?.telephone ?? '',
     event: props.contact?.event ?? '',
     // New contacts default to "met today, follow up in 2 days" so most only need a name.
     met_at: props.contact ? (props.contact.met_at ?? '') : today(),
@@ -183,12 +186,14 @@ const chip = (active) => active
                                     <InputError :message="form.errors.email" class="mt-1" />
                                 </div>
                                 <div>
-                                    <InputLabel for="phone" value="Phone" />
-                                    <div class="relative mt-1">
-                                        <svg class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 size-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" :d="icons.phone" /></svg>
-                                        <TextInput id="phone" v-model="form.phone" type="tel" autocomplete="off" placeholder="+63 917 …" class="block w-full ps-9" />
-                                    </div>
+                                    <InputLabel for="phone" value="Mobile" />
+                                    <PhoneInput id="phone" v-model="form.phone" kind="mobile" icon class="mt-1" />
                                     <InputError :message="form.errors.phone" class="mt-1" />
+                                </div>
+                                <div>
+                                    <InputLabel for="telephone" value="Telephone" />
+                                    <PhoneInput id="telephone" v-model="form.telephone" kind="telephone" icon class="mt-1" />
+                                    <InputError :message="form.errors.telephone" class="mt-1" />
                                 </div>
                             </div>
                         </section>
@@ -328,9 +333,9 @@ const chip = (active) => active
                                     <svg class="size-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" :d="icons.email" /></svg>
                                     <span class="truncate">{{ form.email }}</span>
                                 </li>
-                                <li v-if="form.phone" class="flex items-center gap-2 text-gray-700">
-                                    <svg class="size-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" :d="icons.phone" /></svg>
-                                    {{ form.phone }}
+                                <li v-for="kind in ['phone', 'telephone'].filter((key) => form[key])" :key="kind" class="flex items-center gap-2 text-gray-700">
+                                    <svg class="size-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" :d="phoneIcons[kind === 'phone' ? 'mobile' : 'telephone']" /></svg>
+                                    {{ form[kind] }}
                                 </li>
                                 <li v-if="form.event || form.met_at" class="flex items-center gap-2 text-gray-700">
                                     <svg class="size-4 shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" :d="icons.pin" /></svg>

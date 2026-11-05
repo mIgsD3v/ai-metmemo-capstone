@@ -2,11 +2,14 @@
 
 namespace App\Http\Requests;
 
+use App\Http\Requests\Concerns\ValidatesPhoneNumbers;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
 class ContactRequest extends FormRequest
 {
+    use ValidatesPhoneNumbers;
+
     public function authorize(): bool
     {
         return true; // Ownership is checked by ContactPolicy in the controller.
@@ -15,6 +18,8 @@ class ContactRequest extends FormRequest
     /** The UI sends tags as "a, b, c"; store them as a clean array. */
     protected function prepareForValidation(): void
     {
+        $this->normalizePhoneNumbers(['phone', 'telephone']);
+
         if (is_string($this->tags)) {
             $this->merge([
                 'tags' => collect(explode(',', $this->tags))
@@ -27,13 +32,19 @@ class ContactRequest extends FormRequest
         }
     }
 
+    public function messages(): array
+    {
+        return $this->phoneMessages();
+    }
+
     public function rules(): array
     {
         return [
             'card_id' => ['nullable', Rule::exists('cards', 'id')->where('user_id', $this->user()->id)],
             'full_name' => ['required', 'string', 'max:120'],
             'email' => ['nullable', 'email', 'max:255'],
-            'phone' => ['nullable', 'string', 'max:30'],
+            'phone' => $this->phoneRules(),
+            'telephone' => $this->phoneRules(),
             'company' => ['nullable', 'string', 'max:120'],
             'job_title' => ['nullable', 'string', 'max:120'],
             'tags' => ['nullable', 'array', 'max:15'],

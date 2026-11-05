@@ -79,7 +79,8 @@ class ContactExportService
         return [
             'Name' => $contact->full_name ?? '',
             'Email' => $contact->email ?? '',
-            'Phone' => $contact->phone ?? '',
+            'Mobile' => $contact->phone ?? '',
+            'Telephone' => $contact->telephone ?? '',
             'Company' => $contact->company ?? '',
             'Job title' => $contact->job_title ?? '',
             'Card' => $contact->card?->company ?: ($contact->card?->full_name ?? ''),

@@ -107,6 +107,15 @@ class ContactController extends Controller
         return back()->with('flash.banner', "Marked {$contact->full_name} as followed up. {$next}");
     }
 
+    public function skipFollowUp(Contact $contact): RedirectResponse
+    {
+        Gate::authorize('update', $contact);
+
+        $contact = $this->contacts->skipFollowUp($contact);
+
+        return back()->with('flash.banner', "No follow-up needed for {$contact->full_name}.");
+    }
+
     public function destroy(Contact $contact): RedirectResponse
     {
         Gate::authorize('delete', $contact);

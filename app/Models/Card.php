@@ -24,11 +24,21 @@ class Card extends Model
         'bio',
         'email',
         'phone',
+        'telephone',
         'website',
         'location',
         'is_public',
         'photo_path',
     ];
+
+    /**
+     * What the card's QR codes hold: its public link, marked as scanned, so a signed-in MetMemo member who
+     * scans it with their camera swaps cards straight away. A shared link without the mark just shows the card.
+     */
+    public function qrUrl(): string
+    {
+        return route('public-card.show', ['card' => $this->getKey(), 'swap' => 1]);
+    }
 
     /** Same disk as Jetstream's account photos. */
     public const PHOTO_DISK = 'public';

@@ -44,6 +44,7 @@ class DashboardController extends Controller
                 ...$card->only(['id', 'full_name', 'job_title', 'company']),
                 'photo_url' => $card->displayPhotoUrl(),
                 'public_url' => route('public-card.show', $card),
+                'qr_url' => $card->qrUrl(),
             ])->values(),
             // Lazy so a slow or offline AI service never blocks the first page load.
             'aiOnline' => Inertia::defer(fn () => $this->ai->isHealthy()),

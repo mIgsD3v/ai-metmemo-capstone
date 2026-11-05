@@ -22,6 +22,11 @@ const check = 'm4.5 12.75 6 6 9-13.5';
 const markFollowedUp = (days) => {
     router.post(route('contacts.followed-up', props.contactId), { next_in_days: days }, { preserveScroll: true });
 };
+
+// "I won't reach out": stops the reminders without recording a follow-up that never happened.
+const skipFollowUp = () => {
+    router.post(route('contacts.skip-follow-up', props.contactId), {}, { preserveScroll: true });
+};
 </script>
 
 <template>
@@ -60,6 +65,15 @@ const markFollowedUp = (days) => {
                 @click="markFollowedUp(choice.days)"
             >
                 {{ choice.label }}
+            </button>
+            <div class="my-1 border-t border-gray-200" />
+            <p class="px-4 pt-1 pb-1 text-xs font-medium text-gray-500">Not reaching out?</p>
+            <button
+                type="button"
+                class="block w-full px-4 py-2 text-start text-sm leading-5 text-gray-700 hover:bg-gray-100 focus:outline-none focus:bg-gray-100 transition"
+                @click="skipFollowUp"
+            >
+                No follow-up needed
             </button>
         </template>
     </Dropdown>

@@ -20,7 +20,7 @@ class ContactFactory extends Factory
             'user_id' => User::factory(),
             'full_name' => fake()->name(),
             'email' => fake()->safeEmail(),
-            'phone' => '+63 9'.fake()->numerify('## ### ####'),
+            'phone' => '+63 917 '.fake()->numerify('### ####'),
             'company' => fake()->company(),
             'job_title' => fake()->jobTitle(),
             'source' => fake()->randomElement(ContactSource::cases()),

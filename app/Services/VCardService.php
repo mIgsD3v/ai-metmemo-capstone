@@ -18,7 +18,7 @@ class VCardService
 
     public function build(Card $card): string
     {
-        $lines = $this->person($card->full_name, $card->company, $card->job_title, $card->email, $card->phone);
+        $lines = $this->person($card->full_name, $card->company, $card->job_title, $card->email, $card->phone, $card->telephone);
 
         if ($card->website) {
             $lines[] = 'URL:'.$this->escape($card->website);
@@ -39,7 +39,7 @@ class VCardService
     /** One of the owner's contacts, with where you met and your notes, so the context travels with them. */
     public function buildContact(Contact $contact): string
     {
-        $lines = $this->person($contact->full_name, $contact->company, $contact->job_title, $contact->email, $contact->phone);
+        $lines = $this->person($contact->full_name, $contact->company, $contact->job_title, $contact->email, $contact->phone, $contact->telephone);
 
         $met = array_filter([
             $contact->event ? "Met at {$contact->event}" : null,
@@ -64,7 +64,7 @@ class VCardService
     }
 
     /** @return array<int, string> The lines every vCard starts with. */
-    private function person(string $name, ?string $company, ?string $title, ?string $email, ?string $phone): array
+    private function person(string $name, ?string $company, ?string $title, ?string $email, ?string $phone, ?string $telephone = null): array
     {
         $lines = [
             'BEGIN:VCARD',
@@ -84,6 +84,9 @@ class VCardService
         }
         if ($phone) {
             $lines[] = 'TEL;TYPE=CELL:'.$this->escape($phone);
+        }
+        if ($telephone) {
+            $lines[] = 'TEL;TYPE=WORK,VOICE:'.$this->escape($telephone);
         }
 
         return $lines;

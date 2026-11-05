@@ -33,12 +33,15 @@ class PublicCardController extends Controller
         return Inertia::render('Public/Card', [
             // Only public-facing fields; never the owner's account details.
             'card' => [
-                ...$card->only(['id', 'full_name', 'job_title', 'company', 'bio', 'email', 'phone', 'website', 'location']),
+                ...$card->only(['id', 'full_name', 'job_title', 'company', 'bio', 'email', 'phone', 'telephone', 'website', 'location']),
                 // The card's own photo, else the owner's uploaded account photo; null falls back to initials.
                 'photo_url' => $card->displayPhotoUrl(),
             ],
             'publicUrl' => route('public-card.show', $card),
-            'viewer' => $this->viewer($request, $card),
+            'qrUrl' => $card->qrUrl(),
+            'viewer' => $viewer = $this->viewer($request, $card),
+            // Opened from a card QR by a signed-in member who hasn't swapped with this owner yet: swap right away.
+            'autoSwap' => $request->boolean('swap') && $viewer && ! $viewer['isOwner'] && ! $viewer['swappedContactId'],
         ]);
     }
 
@@ -61,10 +64,10 @@ class PublicCardController extends Controller
         return back()->with('flash.banner', 'Thanks! '.$card->full_name.' will get back to you.');
     }
 
-    /** Guests are sent to log in, then come back here to the card. */
+    /** Guests are sent to log in, then come back to the card, which swaps right away. */
     public function startSwap(string $card): RedirectResponse
     {
-        return redirect()->route('public-card.show', $this->findOrFail($card));
+        return redirect($this->findOrFail($card)->qrUrl());
     }
 
     public function swap(SwapCardsRequest $request, string $card): RedirectResponse

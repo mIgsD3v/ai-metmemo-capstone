@@ -75,6 +75,31 @@ class ContactManagementTest extends TestCase
         $this->assertNotNull($contact->fresh()->last_contacted_at);
     }
 
+    public function test_skipping_a_follow_up_stops_the_reminders_without_recording_a_follow_up(): void
+    {
+        $contact = Contact::factory()->create(['next_follow_up_at' => today()->subDays(3), 'last_contacted_at' => null, 'first_followed_up_at' => null]);
+
+        $this->actingAs($contact->user)->post(route('contacts.skip-follow-up', $contact))->assertRedirect();
+
+        $contact->refresh();
+        $this->assertNull($contact->next_follow_up_at);
+        $this->assertNull($contact->last_contacted_at);
+        $this->assertNull($contact->first_followed_up_at);
+
+        $this->artisan('metmemo:remind-followups')->expectsOutput('Sent 0 follow-up reminders.');
+    }
+
+    public function test_cannot_skip_a_follow_up_on_someone_elses_contact(): void
+    {
+        $contact = Contact::factory()->create(['next_follow_up_at' => today()]);
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('contacts.skip-follow-up', $contact))
+            ->assertForbidden();
+
+        $this->assertNotNull($contact->fresh()->next_follow_up_at);
+    }
+
     public function test_follow_up_only_offers_the_listed_intervals(): void
     {
         $contact = Contact::factory()->create();

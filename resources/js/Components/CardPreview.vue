@@ -1,4 +1,5 @@
 <script setup>
+import { phoneIcons } from '@/phone';
 import { computed } from 'vue';
 
 // A live, scaled-down copy of the public card page (Public/Card.vue) in a phone frame, shown beside the
@@ -32,7 +33,8 @@ const website = computed(() => {
 // Empty fields show as placeholders, so the preview looks like a card from the first keystroke.
 const details = computed(() => [
     { icon: icons.email, label: 'Email', value: props.card.email },
-    { icon: icons.phone, label: 'Phone', value: props.card.phone },
+    { icon: phoneIcons.mobile, label: 'Mobile', value: props.card.phone },
+    props.card.telephone && { icon: phoneIcons.telephone, label: 'Telephone', value: props.card.telephone },
     { icon: icons.web, label: 'Website', value: props.card.website && website.value },
     props.card.location && { icon: icons.pin, label: 'Location', value: props.card.location },
 ].filter(Boolean));

@@ -5,6 +5,7 @@ import { shrink } from '@/images';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import CardPreview from '@/Components/CardPreview.vue';
 import InputError from '@/Components/InputError.vue';
+import PhoneInput from '@/Components/PhoneInput.vue';
 
 const props = defineProps({
     card: Object,
@@ -25,7 +26,8 @@ const sections = [
         title: 'How people reach you',
         fields: [
             { key: 'email', label: 'Email', placeholder: 'name@company.com', type: 'email' },
-            { key: 'phone', label: 'Phone', placeholder: '+63 917 …', type: 'tel' },
+            { key: 'phone', label: 'Mobile', type: 'tel', kind: 'mobile' },
+            { key: 'telephone', label: 'Telephone', type: 'tel', kind: 'telephone' },
             { key: 'website', label: 'Website', placeholder: 'santosrealty.ph' },
             { key: 'location', label: 'Location', placeholder: 'e.g. BGC, Taguig' },
         ],
@@ -41,6 +43,7 @@ const form = useForm({
     bio: props.card?.bio ?? '',
     email: props.card?.email ?? '',
     phone: props.card?.phone ?? '',
+    telephone: props.card?.telephone ?? '',
     website: props.card?.website ?? '',
     location: props.card?.location ?? '',
     is_public: props.card?.is_public ?? true,
@@ -131,7 +134,9 @@ const submit = () => {
                             <div class="clear-both grid gap-4 grid-cols-[repeat(auto-fit,minmax(min(100%,15rem),1fr))]">
                                 <label v-for="field in section.fields" :key="field.key" class="flex flex-col gap-[7px] text-[13px] font-medium text-gray-600" :class="{ 'col-span-full': field.wide }">
                                     {{ field.label }}
+                                    <PhoneInput v-if="field.type === 'tel'" v-model="form[field.key]" :kind="field.kind" field-class="field font-normal" class="font-normal" />
                                     <input
+                                        v-else
                                         v-model="form[field.key]"
                                         :type="field.type ?? 'text'"
                                         :placeholder="field.placeholder"

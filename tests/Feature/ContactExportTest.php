@@ -62,7 +62,7 @@ class ContactExportTest extends TestCase
         $this->assertStringContainsString('metmemo-contacts-', $response->headers->get('Content-Disposition'));
         [$row] = $this->rows($response, 'csv');
         $this->assertSame('Peñafrancia Santos', $row['Name']);
-        $this->assertSame('+63 917 123 4567', $row['Phone']); // a real phone number is left as is
+        $this->assertSame('+63 917 123 4567', $row['Mobile']); // a real phone number is left as is
         $this->assertSame('Herma Corporation', $row['Card']);
         $this->assertSame('Real Estate Expo SMX', $row['Where you met']);
         $this->assertSame('2026-10-30', $row['Next follow-up']);
@@ -138,7 +138,7 @@ class ContactExportTest extends TestCase
 
         $path = $this->actingAs($user)->get(route('contacts.export', 'csv'))->baseResponse->getFile()->getPathname();
 
-        $this->assertStringStartsWith('Name,Email,Phone', ltrim(file_get_contents($path), "\u{FEFF}"));
+        $this->assertStringStartsWith('Name,Email,Mobile,Telephone', ltrim(file_get_contents($path), "\u{FEFF}"));
     }
 
     public function test_vcard_export_has_one_card_per_contact_with_context(): void

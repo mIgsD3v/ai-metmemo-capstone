@@ -3,18 +3,24 @@ import { today as localToday } from '@/dates';
 import { shrink } from '@/images';
 import { computed, ref } from 'vue';
 import { Link, useForm } from '@inertiajs/vue3';
+import { metMemoCardId, parseContactQr } from '@/qrRead';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import InputError from '@/Components/InputError.vue';
 import InputLabel from '@/Components/InputLabel.vue';
+import PhoneInput from '@/Components/PhoneInput.vue';
+import QrScanner from '@/Components/QrScanner.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
 import TextInput from '@/Components/TextInput.vue';
 
-defineProps({
+const props = defineProps({
     cards: Array,
 });
 
-// capture -> reading -> review
+// What to scan: a paper business card (the AI reads it) or a QR code (read in the browser).
+const mode = ref('card');
+
+// A card: capture -> reading -> review. A QR: swap (a MetMemo card), review (a contact QR) or other.
 const step = ref('capture');
 const photoUrl = ref(null);
 const readError = ref(null);
@@ -27,7 +33,8 @@ const scannedFields = [
     ['job_title', 'Job title', 'text'],
     ['company', 'Company', 'text'],
     ['email', 'Email', 'email'],
-    ['phone', 'Phone', 'tel'],
+    ['phone', 'Mobile', 'tel'],
+    ['telephone', 'Telephone', 'tel'],
 ];
 
 const today = localToday();
@@ -38,6 +45,7 @@ const form = useForm({
     company: '',
     email: '',
     phone: '',
+    telephone: '',
     event: '',
     met_at: today,
     card_id: '',
@@ -78,6 +86,45 @@ const onPhoto = async (event) => {
     step.value = 'review';
 };
 
+// QR codes: another MetMemo card -> swap; a contact QR -> the review form; anything else -> shown as is.
+const qrCardId = ref(null);
+const qrText = ref('');
+const fromQr = ref(false);
+const swap = useForm({ card_id: props.cards[0]?.id ?? null });
+
+const onQr = (text) => {
+    const cardId = metMemoCardId(text);
+    const contact = cardId ? null : parseContactQr(text);
+
+    if (cardId) {
+        // Another MetMemo card: swap straight away, sharing the card picked above the scanner.
+        qrCardId.value = cardId;
+        step.value = 'swap';
+        swapCards();
+    } else if (contact) {
+        Object.assign(form, contact);
+        scanned.value = {};
+        readError.value = null;
+        photoUrl.value = null;
+        fromQr.value = true;
+        step.value = 'review';
+    } else {
+        qrText.value = text;
+        step.value = 'other';
+    }
+};
+
+const swapCards = () => {
+    swap.post(route('public-card.swap', qrCardId.value));
+};
+
+const qrLink = computed(() => (/^https?:\/\//i.test(qrText.value.trim()) ? qrText.value.trim() : null));
+
+const chooseMode = (value) => {
+    mode.value = value;
+    startOver();
+};
+
 const typeByHand = () => {
     readError.value = null;
     scanned.value = {};
@@ -87,6 +134,9 @@ const typeByHand = () => {
 
 const startOver = () => {
     form.reset();
+    fromQr.value = false;
+    qrCardId.value = null;
+    qrText.value = '';
     scanned.value = {};
     readError.value = null;
     photoUrl.value = null;
@@ -101,12 +151,14 @@ const confidenceLabel = (field) => `${Math.round((field?.confidence ?? 0) * 100)
 </script>
 
 <template>
-    <AppLayout title="Scan a card">
+    <AppLayout title="Scan">
         <template #header>
             <div class="flex items-center justify-between gap-4">
                 <div>
-                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">Scan a business card</h2>
-                    <p class="text-sm text-gray-500 mt-1">The AI reads it, you check it, MetMemo remembers it.</p>
+                    <h2 class="font-semibold text-xl text-gray-800 leading-tight">{{ mode === 'qr' ? 'Scan a QR code' : 'Scan a business card' }}</h2>
+                    <p class="text-sm text-gray-500 mt-1">
+                        {{ mode === 'qr' ? 'Swap cards with another MetMemo member, or save a contact QR.' : 'The AI reads it, you check it, MetMemo remembers it.' }}
+                    </p>
                 </div>
                 <button v-if="step === 'review'" type="button" class="hidden sm:inline text-sm text-indigo-600 hover:underline" @click="startOver">
                     Scan another
@@ -116,8 +168,24 @@ const confidenceLabel = (field) => `${Math.round((field?.confidence ?? 0) * 100)
 
         <div class="py-6 sm:py-10">
             <div class="page space-y-6">
+                <!-- What to scan -->
+                <div v-if="step === 'capture'" class="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 text-sm font-medium" role="tablist" aria-label="What to scan">
+                    <button
+                        v-for="[value, label] in [['card', 'Business card'], ['qr', 'QR code']]"
+                        :key="value"
+                        type="button"
+                        role="tab"
+                        :aria-selected="mode === value"
+                        class="rounded-lg px-3 py-2 transition"
+                        :class="mode === value ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'"
+                        @click="chooseMode(value)"
+                    >
+                        {{ label }}
+                    </button>
+                </div>
+
                 <!-- Step indicator -->
-                <ol class="flex items-center gap-2 text-xs font-medium" aria-label="Progress">
+                <ol v-if="mode === 'card'" class="flex items-center gap-2 text-xs font-medium" aria-label="Progress">
                     <li
                         v-for="(label, key) in { capture: '1. Photo', reading: '2. AI reads', review: '3. You review' }"
                         :key="key"
@@ -128,8 +196,68 @@ const confidenceLabel = (field) => `${Math.round((field?.confidence ?? 0) * 100)
                     </li>
                 </ol>
 
+                <!-- QR: camera or a picture -->
+                <div v-if="step === 'capture' && mode === 'qr'" class="grid gap-6 lg:grid-cols-5 items-start">
+                    <section class="lg:col-span-3 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 space-y-5">
+                        <div v-if="cards.length > 1">
+                            <InputLabel for="swap_card" value="Card to share when you swap" />
+                            <select id="swap_card" v-model="swap.card_id" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                <option v-for="card in cards" :key="card.id" :value="card.id">
+                                    {{ card.full_name }}{{ card.job_title ? ` · ${card.job_title}` : '' }}
+                                </option>
+                                <option :value="null">Just my name and email</option>
+                            </select>
+                        </div>
+                        <QrScanner @decoded="onQr" />
+                    </section>
+                    <aside class="lg:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8">
+                        <h2 class="font-semibold text-gray-900">What you can scan</h2>
+                        <ul class="mt-4 space-y-4 text-sm">
+                            <li>
+                                <span class="block font-medium text-gray-900">Another MetMemo card</span>
+                                <span class="block text-gray-500">You swap cards as soon as it's scanned: you're both added to each other's contacts.</span>
+                            </li>
+                            <li>
+                                <span class="block font-medium text-gray-900">A contact QR (vCard)</span>
+                                <span class="block text-gray-500">The details fill in for you to check and save.</span>
+                            </li>
+                        </ul>
+                        <p class="mt-6 rounded-xl bg-gray-50 px-4 py-3 text-xs text-gray-500">QR codes are read on your device. Nothing is uploaded and no AI is used.</p>
+                    </aside>
+                </div>
+
+                <!-- QR: another MetMemo card. The swap starts on scan; when it succeeds, their contact page opens. -->
+                <section v-else-if="step === 'swap'" class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-10 flex flex-col items-center gap-4 text-center">
+                    <span class="flex size-14 items-center justify-center rounded-full bg-accent text-accent-fg">
+                        <svg class="size-7" :class="{ 'animate-pulse': swap.processing }" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" /></svg>
+                    </span>
+                    <template v-if="! swap.hasErrors">
+                        <h3 class="font-semibold text-gray-900">Swapping cards…</h3>
+                        <p class="text-sm text-gray-500">You'll both be in each other's contacts in a moment.</p>
+                    </template>
+                    <template v-else>
+                        <h3 class="font-semibold text-gray-900">The swap didn't go through</h3>
+                        <InputError :message="swap.errors.card_id ?? 'Please try again.'" />
+                        <div class="flex flex-col-reverse sm:flex-row gap-3">
+                            <SecondaryButton type="button" class="justify-center" @click="startOver">Scan another</SecondaryButton>
+                            <PrimaryButton type="button" class="justify-center" :disabled="swap.processing" @click="swapCards">Try again</PrimaryButton>
+                        </div>
+                    </template>
+                </section>
+
+                <!-- QR: something else -->
+                <section v-else-if="step === 'other'" class="bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 space-y-4">
+                    <h3 class="font-semibold text-gray-900">This QR code isn't a MetMemo card or a contact</h3>
+                    <p class="break-all rounded-xl bg-gray-50 px-4 py-3 font-mono text-sm text-gray-700">{{ qrText }}</p>
+                    <div class="flex flex-col-reverse sm:flex-row gap-3">
+                        <SecondaryButton type="button" class="justify-center" @click="startOver">Scan another</SecondaryButton>
+                        <a v-if="qrLink" :href="qrLink" target="_blank" rel="noopener noreferrer nofollow" class="btn-quiet h-10 justify-center px-4 text-sm">Open link</a>
+                    </div>
+                    <p v-if="qrLink" class="text-xs text-gray-500">It opens another website. Only open links you trust.</p>
+                </section>
+
                 <!-- 1. Capture: the photo action leads; on wide screens the how-it-works panel sits beside it. -->
-                <div v-if="step === 'capture'" class="grid gap-6 lg:grid-cols-5 items-start">
+                <div v-else-if="step === 'capture'" class="grid gap-6 lg:grid-cols-5 items-start">
                 <section class="lg:col-span-3 bg-white border border-gray-200 rounded-2xl p-6 sm:p-8 space-y-6">
                     <input ref="cameraInput" type="file" accept="image/*" capture="environment" class="hidden" @change="onPhoto">
                     <input ref="galleryInput" type="file" accept="image/jpeg,image/png,image/webp" class="hidden" @change="onPhoto">
@@ -165,7 +293,7 @@ const confidenceLabel = (field) => `${Math.round((field?.confidence ?? 0) * 100)
                     <ol class="mt-5 space-y-5">
                         <li v-for="(item, index) in [
                             ['Take or upload a photo', 'Lay the card flat in good light and fill the frame.'],
-                            ['The AI reads it', 'Name, title, company, email and phone, in a few seconds.'],
+                            ['The AI reads it', 'Name, title, company, email, mobile and telephone, in a few seconds.'],
                             ['You check and save', 'Fields the AI is unsure about are highlighted. Nothing is saved until you confirm.'],
                         ]" :key="index" class="flex gap-4">
                             <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-sm font-semibold text-indigo-600">{{ index + 1 }}</span>
@@ -194,7 +322,10 @@ const confidenceLabel = (field) => `${Math.round((field?.confidence ?? 0) * 100)
 
                 <!-- 3. Review -->
                 <form v-else class="space-y-6" @submit.prevent="save">
-                    <div v-if="readError" class="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800 px-4 py-3 text-sm">
+                    <div v-if="fromQr" class="rounded-xl bg-indigo-50 text-indigo-600 px-4 py-3 text-sm font-medium">
+                        Read from a contact QR code. Give it a quick look and save.
+                    </div>
+                    <div v-else-if="readError" class="rounded-xl border border-amber-300 bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200 dark:border-amber-800 px-4 py-3 text-sm">
                         {{ readError }}
                     </div>
                     <div v-else-if="Object.keys(scanned).length" class="rounded-xl bg-indigo-50 text-indigo-600 px-4 py-3 text-sm font-medium">
@@ -219,7 +350,17 @@ const confidenceLabel = (field) => `${Math.round((field?.confidence ?? 0) * 100)
                                     </span>
                                     <span v-else-if="scanned[key]?.value" class="text-[11px] text-gray-400">{{ confidenceLabel(scanned[key]) }}</span>
                                 </div>
+                                <PhoneInput
+                                    v-if="type === 'tel'"
+                                    :id="key"
+                                    v-model="form[key]"
+                                    :kind="key === 'telephone' ? 'telephone' : 'mobile'"
+                                    icon
+                                    class="mt-1"
+                                    :field-class="`border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-lg shadow-sm ${scanned[key]?.needs_review ? '!border-amber-400 !ring-amber-300' : ''}`"
+                                />
                                 <TextInput
+                                    v-else
                                     :id="key"
                                     v-model="form[key]"
                                     :type="type"

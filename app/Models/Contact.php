@@ -27,6 +27,7 @@ class Contact extends Model
         'full_name',
         'email',
         'phone',
+        'telephone',
         'company',
         'job_title',
         'photo_path',

@@ -81,6 +81,7 @@ Route::middleware([
         ->middlewareFor(['edit', 'update'], 'permission:contacts.update')
         ->middlewareFor('destroy', 'permission:contacts.delete');
     Route::post('/contacts/{contact}/followed-up', [ContactController::class, 'followedUp'])->middleware('permission:contacts.update')->name('contacts.followed-up');
+    Route::post('/contacts/{contact}/skip-follow-up', [ContactController::class, 'skipFollowUp'])->middleware('permission:contacts.update')->name('contacts.skip-follow-up');
     Route::post('/contacts/{contact}/notes', [ContactNoteController::class, 'store'])->middleware('permission:contacts.update')->name('contacts.notes.store');
 
     // Follow-up assistant: asks the AI about your own contacts and notes; drafts only, never sends.

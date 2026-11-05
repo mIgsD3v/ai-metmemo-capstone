@@ -137,9 +137,42 @@ class CardSwapTest extends TestCase
         $this->get(route('public-card.swap.start', $card))->assertRedirect(route('login'));
         $this->post(route('public-card.swap', $card))->assertRedirect(route('login'));
 
+        // Back to the card marked as scanned, so it swaps without another tap.
         $this->actingAs(User::factory()->create())
             ->get(route('public-card.swap.start', $card))
-            ->assertRedirect(route('public-card.show', $card));
+            ->assertRedirect($card->qrUrl());
+    }
+
+    public function test_a_card_qr_scanned_by_a_signed_in_member_swaps_straight_away(): void
+    {
+        $maria = Card::factory()->create();
+        $ben = User::factory()->create();
+
+        $this->assertStringEndsWith("/c/{$maria->id}?swap=1", $maria->qrUrl());
+
+        $this->actingAs($ben)->get($maria->qrUrl())->assertInertia(fn ($page) => $page
+            ->where('autoSwap', true)
+            ->where('qrUrl', $maria->qrUrl()));
+    }
+
+    public function test_a_plain_link_owner_or_finished_swap_does_not_swap_by_itself(): void
+    {
+        $maria = Card::factory()->create();
+        $ben = User::factory()->create();
+
+        // A shared link without the QR mark: the visitor taps to swap.
+        $this->actingAs($ben)->get(route('public-card.show', $maria))->assertInertia(fn ($page) => $page->where('autoSwap', false));
+
+        // The owner scanning their own card.
+        $this->actingAs($maria->user)->get($maria->qrUrl())->assertInertia(fn ($page) => $page->where('autoSwap', false));
+
+        // Already swapped: scanning again doesn't swap again.
+        $this->actingAs($ben)->post(route('public-card.swap', $maria));
+        $this->actingAs($ben)->get($maria->qrUrl())->assertInertia(fn ($page) => $page->where('autoSwap', false));
+
+        // Guests see the card and the lead form.
+        auth()->logout();
+        $this->get($maria->qrUrl())->assertInertia(fn ($page) => $page->where('autoSwap', false)->where('viewer', null));
     }
 
     public function test_card_page_tells_a_signed_in_visitor_what_they_can_swap(): void

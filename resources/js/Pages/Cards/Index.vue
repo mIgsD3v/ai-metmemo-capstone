@@ -130,7 +130,7 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
                                 <p v-if="card.company" class="text-[13px] text-gray-500">{{ card.company }}</p>
                             </div>
                             <div class="shrink-0 rounded-xl bg-[#fff] p-1.5" :class="{ 'opacity-40': ! card.is_public }">
-                                <QrCode :value="card.public_url" :size="84" />
+                                <QrCode :value="card.qr_url" :size="84" />
                             </div>
                         </div>
 
@@ -157,7 +157,7 @@ const initials = (name) => name.split(/\s+/).filter(Boolean).map((word) => word[
                                     <svg class="size-[13px]" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 0 0-3.375-3.375h-1.5a1.125 1.125 0 0 1-1.125-1.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H9.75" /></svg>
                                     Copy
                                 </button>
-                                <button type="button" class="btn-quiet h-[30px] shrink-0 rounded-[7px] px-2.5 text-xs" :aria-label="`Download the QR code for ${card.full_name}`" @click="downloadQr(card.public_url, card.full_name)">
+                                <button type="button" class="btn-quiet h-[30px] shrink-0 rounded-[7px] px-2.5 text-xs" :aria-label="`Download the QR code for ${card.full_name}`" @click="downloadQr(card.qr_url, card.full_name)">
                                     <svg class="size-[13px]" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
                                     QR
                                 </button>
