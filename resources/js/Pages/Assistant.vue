@@ -202,7 +202,7 @@ onMounted(() => {
             <!-- Saved chats: a column on desktop, a drawer on phones -->
             <section
                 aria-label="Saved chats"
-                class="fixed inset-y-0 start-0 z-50 w-[85%] max-w-xs overflow-y-auto border-e border-gray-200 bg-gray-100 px-3 py-5 shadow-2xl transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:shadow-none"
+                class="fixed inset-y-0 start-0 z-50 w-[85%] max-w-xs overflow-y-auto border-e border-gray-200 bg-gray-100 px-3 py-5 shadow-2xl transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:overflow-visible lg:shadow-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                 :class="showChats ? 'translate-x-0' : '-translate-x-full'"
                 @keydown.escape="showChats = false"
             >
@@ -220,7 +220,8 @@ onMounted(() => {
                         New chat
                     </Link>
                     <p v-if="! conversations.length" class="px-2.5 text-[13px] text-gray-400">Your chats are saved here, so you can come back to them.</p>
-                    <nav v-else class="max-h-[70vh] overflow-y-auto" aria-label="Chats">
+                    <!-- Scrolls without showing a scrollbar. -->
+                    <nav v-else class="max-h-[70vh] overflow-y-auto overscroll-contain [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Chats">
                         <div v-for="(group, g) in chatGroups" :key="group.label" :class="g ? 'pt-3.5' : ''">
                             <p class="eyebrow px-2.5 pb-1.5">{{ group.label }}</p>
                             <ul class="space-y-0.5">
