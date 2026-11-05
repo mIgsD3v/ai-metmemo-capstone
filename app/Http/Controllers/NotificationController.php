@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Notifications\CardsSwapped;
 use App\Notifications\FollowUpsDue;
 use App\Notifications\NewLeadCaptured;
 use Illuminate\Http\JsonResponse;
@@ -23,6 +24,7 @@ class NotificationController extends Controller
     private const TYPES = [
         'lead' => NewLeadCaptured::class,
         'followups' => FollowUpsDue::class,
+        'swap' => CardsSwapped::class,
     ];
 
     public function index(Request $request): Response

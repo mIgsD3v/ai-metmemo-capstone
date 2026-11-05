@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import { router } from '@inertiajs/vue3';
 import { timeAgo } from '@/dates';
-import { markAllRead } from '@/notifications';
+import { markAllRead, notificationIcons as icons } from '@/notifications';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Pagination from '@/Components/Pagination.vue';
 
@@ -12,13 +12,6 @@ const props = defineProps({
     perPageOptions: Array,
     counts: Object,
 });
-
-const icons = {
-    lead: 'M18 7.5v3m0 0v3m0-3h3m-3 0h-3m-2.25-4.125a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0ZM3 19.235v-.11a6.375 6.375 0 0 1 12.75 0v.109A12.318 12.318 0 0 1 9.374 21c-2.331 0-4.512-.645-6.374-1.766Z',
-    followups: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',
-    swap: 'M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5',
-    bell: 'M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0',
-};
 
 const typeLabels = { lead: 'New lead', followups: 'Follow-up', swap: 'Card swap' };
 
@@ -95,6 +88,7 @@ const formatDate = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle:
                         <option value="">All types</option>
                         <option value="lead">New leads from your cards</option>
                         <option value="followups">Follow-up reminders</option>
+                        <option value="swap">Card swaps</option>
                     </select>
                 </div>
 
@@ -107,8 +101,8 @@ const formatDate = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle:
                             :class="{ 'bg-indigo-50/40': ! item.read }"
                             @click="open(item)"
                         >
-                            <span class="flex items-center justify-center size-10 shrink-0 rounded-full bg-indigo-50 text-indigo-600">
-                                <svg class="size-5" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" aria-hidden="true">
+                            <span class="flex items-center justify-center size-9 shrink-0 rounded-full bg-indigo-50 text-indigo-600">
+                                <svg class="size-[18px]" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" :d="icons[item.kind] ?? icons.bell" />
                                 </svg>
                             </span>
@@ -117,8 +111,8 @@ const formatDate = (iso) => new Date(iso).toLocaleString(undefined, { dateStyle:
                                     <span class="text-sm text-gray-900" :class="item.read ? 'font-medium' : 'font-semibold'">{{ item.title }}</span>
                                     <span v-if="! item.read" class="mt-1.5 size-2 shrink-0 rounded-full bg-indigo-600" aria-label="Unread" />
                                 </span>
-                                <span class="mt-0.5 block text-sm text-gray-500 line-clamp-2">{{ item.body }}</span>
-                                <span class="mt-1.5 block text-[11px] font-semibold uppercase tracking-wider text-gray-400">{{ timeAgo(item.created_at) }}</span>
+                                <span class="mt-0.5 block text-[13px] leading-snug text-gray-500 line-clamp-2">{{ item.body }}</span>
+                                <span class="mt-1 block text-xs text-gray-400">{{ timeAgo(item.created_at) }}</span>
                             </span>
                         </button>
                     </li>
