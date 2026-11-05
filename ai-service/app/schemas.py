@@ -69,6 +69,8 @@ class AssistantRequest(BaseModel):
     user_id: str = Field(min_length=1, max_length=64)
     # The owner's display name, so drafts are signed by them instead of "[Your Name]".
     owner_name: str | None = Field(default=None, max_length=100)
+    # One line from the owner's own card (role, company, location), so the assistant knows who it's helping.
+    owner_profile: str | None = Field(default=None, max_length=800)
     message: str = Field(min_length=1, max_length=2000)
     # Conversation memory: earlier turns, oldest first. Laravel keeps the chat and sends it each time.
     history: list[ChatMessage] = Field(default=[], max_length=20)

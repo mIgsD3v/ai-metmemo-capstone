@@ -24,7 +24,10 @@ The three system prompts are in `ai-service/app/agent/prompts.py`. The measured 
 
 ## Decision
 
-`grounded` is the default (`ASSISTANT_PROMPT=grounded`). The other two stay in the code as the comparison baseline.
+`grounded` won this comparison. The other two stay in the code as the comparison baseline.
+
+Later, `grounded` refused questions about the user themselves ("Who am I?"), so `personal` became the default
+(`ASSISTANT_PROMPT=personal`): `grounded` plus one exception for those questions. It was not part of this comparison.
 
 ## A fix made during the comparison
 

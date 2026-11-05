@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\AssistantConversation;
+use App\Models\Card;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
@@ -106,7 +107,30 @@ class AssistantTest extends TestCase
 
         Http::assertSent(fn (Request $request) => $request->url() === 'http://ai.test/assistant/chat'
             && $request->hasHeader('X-Internal-Token', 'secret')
-            && $request->data() === ['user_id' => $user->id, 'owner_name' => 'Maria Santos', 'message' => 'Draft a follow-up to Juan about the dues', 'history' => [], 'session_id' => null]);
+            && $request->data() === ['user_id' => $user->id, 'owner_name' => 'Maria Santos', 'owner_profile' => null, 'message' => 'Draft a follow-up to Juan about the dues', 'history' => [], 'session_id' => null]);
+    }
+
+    public function test_the_assistant_knows_the_owner_from_their_latest_card_but_not_their_contact_details(): void
+    {
+        Http::fake(['ai.test/*' => Http::response($this->reply('You are Maria.'))]);
+        $user = User::factory()->create();
+        Card::factory()->for($user)->create(['job_title' => 'Trainee', 'company' => 'Old Co', 'location' => 'Cebu City', 'updated_at' => now()->subWeek()]);
+        Card::factory()->for($user)->create(['job_title' => 'Broker', 'company' => 'Ayala Land', 'location' => 'Makati City', 'email' => 'maria@example.com', 'phone' => '+63 917 000 0000']);
+
+        $this->actingAs($user)->postJson(route('assistant.ask'), ['message' => 'Who am I?'])->assertOk();
+
+        Http::assertSent(fn (Request $request) => $request['owner_profile'] === 'Broker at Ayala Land, Makati City');
+    }
+
+    public function test_a_card_with_only_some_details_still_reads_as_a_profile(): void
+    {
+        Http::fake(['ai.test/*' => Http::response($this->reply('You are Maria.'))]);
+        $user = User::factory()->create();
+        Card::factory()->for($user)->create(['job_title' => null, 'company' => 'Ayala Land', 'location' => null]);
+
+        $this->actingAs($user)->postJson(route('assistant.ask'), ['message' => 'Who am I?'])->assertOk();
+
+        Http::assertSent(fn (Request $request) => $request['owner_profile'] === 'Ayala Land');
     }
 
     public function test_memory_comes_from_the_saved_chat_not_from_the_browser(): void

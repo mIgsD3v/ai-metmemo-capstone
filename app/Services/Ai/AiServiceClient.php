@@ -85,12 +85,13 @@ class AiServiceClient
      *
      * @throws AiServiceException
      */
-    public function chat(string $userId, ?string $ownerName, string $message, array $history = [], ?string $sessionId = null): array
+    public function chat(string $userId, ?string $ownerName, ?string $ownerProfile, string $message, array $history = [], ?string $sessionId = null): array
     {
         try {
             $response = $this->request()->post('/assistant/chat', [
                 'user_id' => $userId,
                 'owner_name' => $ownerName,
+                'owner_profile' => $ownerProfile,
                 'message' => $message,
                 'history' => $history,
                 'session_id' => $sessionId,

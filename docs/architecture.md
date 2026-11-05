@@ -124,7 +124,7 @@ sequenceDiagram
     G-->>A: safe (or refuse: 0 model calls)
     A->>R: answer cache lookup
     R-->>A: miss
-    A->>M: system prompt "grounded" + tools
+    A->>M: system prompt "personal" + tools
     M-->>A: find_contact("Elena Castillo")
     A->>T: contact search (scoped to user_id)
     M-->>A: get_contact_notes(...)

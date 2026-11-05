@@ -134,12 +134,14 @@ async def bump_data_version(cache: Cache, user_id: str) -> None:
     await cache.incr(_version_key(user_id))
 
 
-async def answer_key(cache: Cache, *, user_id: str, variant: str, model: str, message: str, history: list[dict]) -> str:
+async def answer_key(
+    cache: Cache, *, user_id: str, variant: str, model: str, message: str, history: list[dict], owner_profile: str | None = None
+) -> str:
     [version] = await cache.get_many([_version_key(user_id)])
     today = datetime.now(MANILA).date().isoformat()
     turns = json.dumps(history, sort_keys=True, ensure_ascii=False)
     question = " ".join(message.lower().split())  # "Who is due?" and "who  is due? " are the same question
-    return f"answer:{user_id}:{_hash(variant, model, today, (version or b'0').decode(), question, turns)}"
+    return f"answer:{user_id}:{_hash(variant, model, today, (version or b'0').decode(), question, turns, owner_profile or "")}"
 
 
 async def get_answer(cache: Cache, key: str) -> dict | None:

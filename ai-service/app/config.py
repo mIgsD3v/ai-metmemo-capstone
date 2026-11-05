@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     # Locally this is a second `php artisan serve` (port 8003): the dev server handles one request at a time,
     # and the main one is busy waiting for this service while the assistant answers.
     laravel_url: str = "http://127.0.0.1:8003"
-    # System prompt variant: baseline | structured | grounded (see app/agent/prompts.py).
-    assistant_prompt: Literal["baseline", "structured", "grounded"] = "grounded"
+    # System prompt variant: baseline | structured | grounded | personal (see app/agent/prompts.py).
+    assistant_prompt: Literal["baseline", "structured", "grounded", "personal"] = "personal"
 
     # Caching (app/cache.py). Empty turns it off; the service works the same, only slower and dearer.
     redis_url: str = ""

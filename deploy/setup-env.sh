@@ -73,7 +73,7 @@ LANGFUSE_HOST=https://us.cloud.langfuse.com
 CHAT_MODEL=gpt-4o-mini
 EMBEDDING_MODEL=text-embedding-3-small
 EMBEDDING_DIMENSIONS=1536
-ASSISTANT_PROMPT=grounded
+ASSISTANT_PROMPT=personal
 QDRANT_URL=http://qdrant:6333
 REDIS_URL=redis://redis:6379/0
 # The assistant's tools call the app's /internal API through its public URL (token-protected).

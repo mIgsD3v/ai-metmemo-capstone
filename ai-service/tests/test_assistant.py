@@ -217,6 +217,24 @@ async def test_owner_name_is_in_the_prompt_so_drafts_are_signed(index):
     assert "Sign drafts as Maria Santos" in model.calls[0][0][0]["content"]
 
 
+async def test_questions_about_the_owner_are_in_scope_by_default(index):
+    model = ScriptedModel(say("You're Maria."))
+
+    await FollowUpAgent(model).run(toolbox(index), "Who am I?", owner_name="Maria Santos", owner_profile="Broker at Ayala Land, Makati City")
+
+    prompt = model.calls[0][0][0]["content"]
+    assert "Exception to the scope rule" in prompt
+    assert "Maria Santos: Broker at Ayala Land, Makati City." in prompt
+
+
+async def test_an_owner_without_a_profile_gets_no_invented_details(index):
+    model = ScriptedModel(say("You're Maria."))
+
+    await FollowUpAgent(model).run(toolbox(index), "Who am I?", owner_name="Maria Santos")
+
+    assert "Maria Santos: no other details on file." in model.calls[0][0][0]["content"]
+
+
 async def test_several_matching_contacts_tells_the_model_to_ask(index):
     model = ScriptedModel(call("find_contact", name="a"), say("Which one: Juan Dela Cruz or Isabel Navarro?"))
 
@@ -447,6 +465,17 @@ def test_chat_endpoint_returns_answer_tools_drafts_and_sources(client):
     assert body["drafts"][0]["channel"] == "text" and body["drafts"][0]["subject"] is None
     assert body["sources"][0]["note_id"] == "n-dues"
     assert body["steps"] == 3
+
+
+def test_chat_endpoint_tells_the_model_who_is_asking(client):
+    model = ScriptedModel(say("You're Maria."))
+
+    response = client(model).post("/assistant/chat", json={
+        "user_id": ALICE, "owner_name": "Maria Santos", "owner_profile": "Broker at Ayala Land", "message": "Who am I?",
+    })
+
+    assert response.status_code == 200
+    assert "Maria Santos: Broker at Ayala Land." in model.calls[0][0][0]["content"]
 
 
 def test_model_outage_is_a_clear_502(client):

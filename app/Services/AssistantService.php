@@ -51,7 +51,7 @@ class AssistantService
                 ->all()
             : [];
 
-        $reply = $this->ai->chat($user->id, $user->name, $message, $memory, $conversation?->id);
+        $reply = $this->ai->chat($user->id, $user->name, $this->ownerProfile($user), $message, $memory, $conversation?->id);
 
         return DB::transaction(function () use ($user, $conversation, $message, $reply) {
             $conversation ??= $this->conversations->create($user, Str::limit(Str::squish($message), 80));
@@ -67,6 +67,19 @@ class AssistantService
 
             return [$conversation, $answer];
         });
+    }
+
+    /** One line about the owner from their latest card. Email and phone stay out: the assistant must never show them. */
+    private function ownerProfile(User $user): ?string
+    {
+        $card = $user->cards()->latest('updated_at')->first();
+        if (! $card) {
+            return null;
+        }
+
+        $role = collect([$card->job_title, $card->company])->filter()->implode(' at ');
+
+        return collect([$role, $card->location])->filter()->implode(', ') ?: null;
     }
 
     public function delete(AssistantConversation $conversation): void

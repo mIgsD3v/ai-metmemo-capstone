@@ -35,16 +35,17 @@ class AgentResult:
 
 
 class FollowUpAgent:
-    def __init__(self, model: ChatModel, prompt_variant: str = "grounded", max_steps: int = MAX_STEPS):
+    def __init__(self, model: ChatModel, prompt_variant: str = "personal", max_steps: int = MAX_STEPS):
         self._model = model
         self._prompt_variant = prompt_variant
         self._max_steps = max_steps
 
     async def run(
-        self, tools: Toolbox, message: str, history: list[ChatMessage] | None = None, owner_name: str | None = None
+        self, tools: Toolbox, message: str, history: list[ChatMessage] | None = None, owner_name: str | None = None,
+        owner_profile: str | None = None,
     ) -> AgentResult:
         today = datetime.now(MANILA).strftime("%A, %d %B %Y")
-        prompt = system_prompt(self._prompt_variant, today, owner_name or "the user")
+        prompt = system_prompt(self._prompt_variant, today, owner_name or "the user", owner_profile)
         messages: list[dict] = [{"role": "system", "content": prompt}]
         messages += [{"role": turn.role, "content": turn.content} for turn in history or []]
         messages.append({"role": "user", "content": message})

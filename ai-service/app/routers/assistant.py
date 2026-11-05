@@ -57,7 +57,7 @@ async def assistant_chat(
         # Exact repeat of a question the user asked today, against the same notes: answer from the cache.
         key = await answer_key(
             cache, user_id=request.user_id, variant=settings.assistant_prompt, model=settings.chat_model,
-            message=verdict.text, history=[turn.model_dump() for turn in history],
+            message=verdict.text, history=[turn.model_dump() for turn in history], owner_profile=request.owner_profile,
         )
         if (hit := await get_answer(cache, key)) is not None:
             response = AssistantResponse(**(hit | {"guardrails": verdict.events + hit.get("guardrails", []), "cached": True, "usage": {}}))
@@ -68,7 +68,7 @@ async def assistant_chat(
         tools = Toolbox(request.user_id, data, index, embedder)
         agent = FollowUpAgent(model, settings.assistant_prompt)
         try:
-            result = await agent.run(tools, verdict.text, history, request.owner_name)
+            result = await agent.run(tools, verdict.text, history, request.owner_name, request.owner_profile)
         except OpenAIError as error:
             logger.warning("assistant failed: %s", type(error).__name__)
             root.update(level="ERROR", status_message=type(error).__name__)

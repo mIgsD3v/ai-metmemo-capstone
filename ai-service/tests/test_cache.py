@@ -93,6 +93,15 @@ async def test_answer_keys_ignore_case_and_spacing_but_not_history(cache):
     assert a == b and a != c
 
 
+async def test_a_card_change_is_a_new_answer_key(cache):
+    common = {"user_id": ALICE, "variant": "grounded", "model": "gpt-4o-mini", "message": "Who am I?", "history": []}
+
+    before = await answer_key(cache, owner_profile="Broker at Ayala Land", **common)
+    after = await answer_key(cache, owner_profile="Partner at Ayala Land", **common)
+
+    assert before != after
+
+
 async def test_a_note_change_invalidates_that_users_answers_only(cache):
     common = {"variant": "grounded", "model": "gpt-4o-mini", "message": "Who is due?", "history": []}
     alice_before = await answer_key(cache, user_id=ALICE, **common)
